@@ -1,3 +1,314 @@
+import Chevrotain, {CstParser, Lexer, createToken} from 'chevrotain';
+
+let category_token = createToken({name: 'Category', pattern: Lexer.NA});
+let string_value_category = createToken({name: 'StringValueCategory', pattern: Lexer.NA});
+let ordered_value_category = createToken({name: 'OrderedValueCategory', pattern: Lexer.NA});
+let set_value_category = createToken({name: 'SetValueCategory', pattern: Lexer.NA});
+let operation_token = createToken({name: 'Operation', pattern: Lexer.NA});
+
+let colon_operation = createToken({name: 'ColonOperation', pattern: /:/, push_mode: 'value',
+                                   categories: ['operation_token']});
+let less_than_operation = createToken({name: 'LessThanOperation', pattern: /</, push_mode: 'value',
+                                       categories: ['operation_token']});
+let greater_than_operation = createToken({name: 'GreaterThanOperation', pattern: />/, push_mode: 'value',
+                                          categories: ['operation_token']});
+let less_or_equal_operation = createToken({name: 'LessOrEqualOperation', pattern: /<=/, push_mode: 'value',
+                                           categories: ['operation_token']});
+let greater_or_equal_operation = createToken({name: 'GreaterOrEqualOperation', pattern: />=/, push_mode: 'value',
+                                              categories: ['operation_token']});
+let equals_operation = createToken({name: 'EqualsOperation', pattern: /=/, push_mode: 'value',
+                                    categories: ['operation_token']});
+
+let negation_operator = createToken({name: 'NegationOperator', pattern: /-/});
+
+let type_category = createToken({name: "TypeCategory", pattern: /t(ype)?/, push_mode: 'operation',
+                                 categories: [category_token, string_value_category]});
+let oracle_category = createToken({name: "OracleCategory", pattern: /o(racle)?/, push_mode: 'operation',
+                                   categories: [category_token, string_value_category]});
+let set_category = createToken({name: "SetCategory", pattern: /s(et)?/, push_mode: 'operation',
+                                categories: [category_token, string_value_category]});
+let name_category = createToken({name: "NameCategory", pattern: /name/, push_mode: 'operation',
+                                 categories: [category_token, string_value_category]});
+let status_category = createToken({name: "StatusCategory", pattern: /stat(us)?/, push_mode: 'operation',
+                                   categories: [category_token, string_value_category]});
+let artist_category = createToken({name: "ArtistCategory", pattern: /a(rt(ist)?)?/, push_mode: 'operation',
+                                   categories: [category_token, string_value_category]});
+let mana_category = createToken({name: "ManaCategory", pattern: /m(ana)?/, push_mode: 'operation',
+                                 categories: [category_token, string_value_category]});
+let tag_category = createToken({name: "TagCategory", pattern: /tag/, push_mode: 'operation',
+                                categories: [category_token, string_value_category]});
+
+let power_category = createToken({name: "PowerCategory", pattern: /pow(er)?/, push_mode: 'operation',
+                                  categories: [category_token, ordered_value_category]});
+let toughness_category = createToken({name: "ToughnessCategory", pattern: /tou(ghness)?/, push_mode: 'operation',
+                                      categories:[category_token, ordered_value_category]});
+let price_category = createToken({name: "PriceCategory", pattern: /p(rice)?/, push_mode: 'operation',
+                                 categories: [category_token, ordered_value_category]});
+let foilprice_category = createToken({name: "Category", pattern: /((fp)|(foilprice)|(pricefoil)|(pf))/, push_mode: 'operation',
+                                      categories:[category_token, ordered_value_category]});
+let cmc_category = createToken({name: "CmcCategory", pattern: /c(mc)?/, push_mode: 'operation',
+                                categories: [category_token, ordered_value_category]});
+let loyalty_category = createToken({name: "LoyaltyCategory", pattern: /loy(alty)?/, push_mode: 'operation',
+                                    categories:[category_token, ordered_value_category]});
+let rarity_category = createToken({name: "RarityCategory", pattern: /r(arity)?/, push_mode: 'operation',
+                                   categories: [category_token, ordered_value_category]});
+
+let color_category = createToken({name: "ColorCategory", pattern: /c(olor)?/, push_mode: 'operation',
+                                  categories: [category_token, set_value_category]});
+let identity_category = createToken({name: "IdentityCategory", pattern: /((ci)|(id(entity)?))/, push_mode: 'operation',
+                                     categories: [category_token, set_value_category]});
+
+let string_value = createToken({name: "StringValue", pattern: /[^\s"]+/, push_mode: 'field'});
+let quoted_value = createToken({name: "QuotedValue", pattern: /"((\\")|(\\n)|[^\\"])+"/, push_mode: 'field',
+                                categories: [string_value]});
+// TODO: regex_value
+// TODO: mana_value
+let dollar_value = createToken({name: "DollarValue", pattern: /\$?((\d+(\.\d{1,2}?)?)|(\.\d{1,2}))/, push_mode: 'field',
+                                categories: [string_value]})
+let power_toughness_value = createToken({name: "PowerToughnessValue", pattern: /(-?\d+)|(\d+(\.5)?)/, push_mode: 'field',
+                                         categories: [string_value]});
+let cmc_value = createToken({name: "CmcValue", pattern: /(0?\.5)|(\d+)/, push_mode: 'field',
+                             categories: [string_value, power_toughness_value, dollar_value]});
+let positive_integer_value = createToken({name: "PositiveIntegerValue", pattern: /\d+/, push_mode: 'field',
+                                          categories: [string_value, power_toughness_value, cmc_value, dollar_value]});
+let rarity_value = createToken({name: "RarityValue", pattern: Lexer.NA});
+let common_value = createToken({name: "CommonValue", pattern: /c(ommon)?/, push_mode: 'field',
+                                categories: [string_value, rarity_value]});
+common_value.rarity_index = 0
+let uncommon_value = createToken({name: "UncommonValue", pattern: /u(ncommon)?/, push_mode: 'field',
+                                  categories: [string_value, rarity_value]});
+uncommon_value.rarity_index = 1
+let rare_value = createToken({name: "RareValue", pattern: /r(are)?/, push_mode: 'field',
+                              categories: [string_value, rarity_value]});
+rare_value.rarity_index = 2
+let mythic_value = createToken({name: "MythicValue", pattern: /m(ythic)?/, push_mode: 'field',
+                                categories: [string_value, rarity_value]});
+mythic_value.rarity_index = 3
+let whitespace_token = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED})
+let filter_tokens = [category_token, string_value_category, ordered_value_category, set_value_category,
+                     mana_category, cmc_category, color_category, identity_category,
+                     type_category, oracle_category, set_category, power_category, toughness_category,
+                     name_category, tag_category, price_category, foilprice_category,
+                     status_category, rarity_category, loyalty_category, artist_category,
+                     cmc_value, power_toughness_value, dollar_value, positive_integer_value, 
+                     rarity_value, common_value, uncommon_value, rare_value, mythic_value,
+                     string_value, quoted_value, whitespace_token];
+let filter_lexer_modes = {
+    modes: {
+        field: [
+            negation_operator, type_category, oracle_category, set_category, name_category, status_category,
+            artist_category, mana_category, tag_category, power_category, toughness_category, price_category,
+            foilprice_category, cmc_category, loyalty_category, rarity_category, color_category, identity_category,
+            whitespace_token
+        ],
+        operation: [
+            colon_operation, less_than_operation, greater_than_operation, less_or_equal_operation,
+            greater_or_equal_operation, equals_operation, whitespace_token
+        ],
+        value: [
+            quoted_value, positive_integer_value, cmc_value, power_toughness_value, dollar_value, common_value,
+            uncommon_value, rare_value, mythic_value, string_value
+        ]
+    },
+    defaultMode: 'field'
+}
+
+
+class FilterParser extends CstParser {
+  constructor() {
+    super(filter_tokens);
+
+    this.RULE("filter", () => {
+      this.AT_LEAST_ONE({ DEF: () => {
+        this.SUBRULE(this.filterParameter);
+      } });
+    });
+
+    this.RULE("filterParameter", () => {
+      this.OR([
+        { ALT: () => { this.SUBRULE(this.orderedParameter); } },
+        { ALT: () => { this.SUBRULE(this.stringParameter); } },
+        { ALT: () => { this.SUBRULE(this.setParameter); } }
+      ]);
+    });
+
+    this.RULE('orderedParameter', () => {
+      this.OR([
+        { ALT: () => { this.SUBRULE(this.powerToughnessParameter); } },
+        { ALT: () => { this.SUBRULE(this.dollarParameter); } },
+        { ALT: () => { this.SUBRULE(this.cmcParameter); } },
+        { ALT: () => { this.SUBRULE(this.positiveIntegerParameter); } },
+        { ALT: () => { this.SUBRULE(this.rarityParameter); } },
+      ]);
+    });
+    this.RULE('powerToughnessParameter', () => {
+      this.OR([
+        { ALT: () => { this.CONSUME(power_category); } },
+        { ALT: () => { this.CONSUME(toughness_category); } }
+      ]);
+      this.CONSUME(operation_token);
+      this.CONSUME(power_toughness_value);
+    });
+    this.RULE('dollarParameter', () => {
+      this.OR([
+        { ALT: () => { this.CONSUME(price_category); } },
+        { ALT: () => { this.CONSUME(foilprice_category); } }
+      ]);
+      this.CONSUME(operation_token);
+      this.CONSUME(dollar_value);
+    });
+    this.RULE('cmcParameter', () => {
+      this.CONSUME(cmc_category);
+      this.CONSUME(operation_token);
+      this.CONSUME(cmc_value);
+    });
+    this.RULE('positiveIntegerParameter', () => {
+      this.CONSUME(loyalty_category);
+      this.CONSUME(operation_token);
+      this.CONSUME(positive_integer_value);
+    });
+    this.RULE('rarityParameter', () => {
+      this.CONSUME(rarity_category);
+      this.CONSUME(operation_token);
+      this.CONSUME(rarity_value);
+    });
+
+    this.RULE("stringParameter", () => {
+      this.OR([
+        { ALT: () => { this.SUBRULE(this.plainStringParameter); } },
+        { ALT: () => { this.SUBRULE(this.manaParameter); } }
+      ]);
+    });
+    this.RULE("plainStringParameter", () => {
+      this.OR([
+        { ALT: () => { this.CONSUME(type_category); } },
+        { ALT: () => { this.CONSUME(set_category); } },
+        { ALT: () => { this.CONSUME(oracle_category); } },
+        { ALT: () => { this.CONSUME(name_category); } },
+        { ALT: () => { this.CONSUME(status_category); } },
+        { ALT: () => { this.CONSUME(artist_category); } },
+        { ALT: () => { this.CONSUME(tag_category); } }
+      ]);
+      this.CONSUME(equals_operation);
+      this.CONSUME(quoted_value);
+    });
+    this.RULE("manaParameter", () => {
+      this.CONSUME(mana_category);
+      this.CONSUME(operation_token);
+      // TODO: Replace with mana_value
+      this.CONSUME(string_value);
+    });
+        
+    this.RULE("setParameter", () => {
+      this.OR([
+        { ALT: () => { this.CONSUME(color_category); } },
+        { ALT: () => { this.CONSUME(identity_category); } }
+      ]);
+      this.CONSUME(operation_token);
+      this.AT_LEAST_ONE({ DEF: () => {
+        // TODO: Replace with mana_value
+        this.CONSUME(string_value);
+      } });
+    });
+
+    this.performSelfAnalysis();
+  }
+}
+
+let filter_parser = new FilterParser();
+
+const BaseCstVisitor = filter_parser.getBaseCstVisitorConstructor();
+class FilterInterpreter extends BaseCstVisitor {
+  constructor(card) {
+    super();
+    this.validateVisitor();
+  }
+  
+  filter(ctx) {
+    return ctx.filterParameter.map(param => { return this.visit(param); });
+  }
+
+  filterParameter(ctx) {
+    return this.visit(ctx[Object.keys(ctx)[0]]);
+  }
+
+  orderedParameter(ctx) {
+    let inner = this.visit(ctx[Object.keys(ctx)[0]]);
+    return (card) => {
+      let {card_value, query_value} = inner(card);
+      return card_value == query_value;
+    }
+  }
+
+  powerToughnessParameter(ctx) {
+    console.log('powerToughnessParameter');
+    console.log(ctx);
+    return (card) => true;
+  }
+
+  dollarParameter(ctx) {
+    console.log('dollarParameter');
+    console.log(ctx);
+    // if (result[0] == '$') result = result.slice(1)
+    return (card) => true;
+  }
+
+  cmcParameter(ctx) {
+    console.log('cmcParameter');
+    console.log(ctx);
+    return (card) => true;
+  }
+
+  positiveIntegerParameter(ctx) {
+    console.log('positiveIntegerParameter');
+    console.log(ctx);
+    return (card) => true;
+  }
+  
+  rarityParameter(ctx) {
+    console.log('rarityParameter');
+    let rarity = ctx.RarityValue[0];
+    console.log(rarity);
+    return (card) => {
+      return {
+        card_value: rarityOrder.indexOf[card.details.rarity],
+        query_value: rarity.tokenType.rarity_index
+      };
+    };
+  }
+  
+  stringParameter(ctx) {
+    let inner = this.visit(ctx[Object.keys(ctx)[0]]);
+    return (card) => {
+      let {card_value, query_value} = inner(card);
+      return card_value == query_value;
+    }
+  }
+  
+  plainStringParameter(ctx) {
+    console.log('plainStringParameter');
+    console.log(ctx);
+    return (card) => true;
+  }
+  
+  manaParameter(ctx) {
+    console.log('manaParameter');
+    console.log(ctx);
+    return (card) => true;
+  }
+  
+  setParameter(ctx) {
+    let inner = this.visit(ctx[Object.keys(ctx)[0]]);
+    return (card) => {
+      let {card_value, query_value} = inner(card);
+      return card_value == query_value;
+    }
+  }
+}
+
+let filter_lexer = new Lexer(filter_lexer_modes, { positionTracking: 'onlyStart' });
+let filter_interpreter = new FilterInterpreter();
+
 let rarity_order = ['common', 'uncommon', 'rare', 'mythic'];
 
 let categoryMap = new Map([
@@ -699,4 +1010,5 @@ function filterApply(card, filter, inCube) {
   }
 }
 
-export default { tokenizeInput, verifyTokens, parseTokens, filterCard };
+export default { tokenizeInput, verifyTokens, parseTokens, filterCard,
+                 filter_lexer, filter_parser, filter_interpreter };
