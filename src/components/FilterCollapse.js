@@ -281,16 +281,14 @@ class FilterCollapse extends Component {
       this.store().del('f');
       return;
     }
-    const tokens = [];
-    const valid = Filter.tokenizeInput(filterInput, tokens) && Filter.verifyTokens(tokens);
-    if (!valid) return;
-
-    if (tokens.length > 0) {
-      const filters = [Filter.parseTokens(tokens)];
-      // TODO: Copy to advanced filter boxes.
-      this.props.setFilter(filters, filterInput);
-      this.store().set('f', filterInput);
-    }
+    const tokens = Filter.tokenizeInput(filterInput, tokens);
+    if (tokens.errors.length > 0 || tokens.tokens.length == 0) return;
+    const parsed = Filter.verifyTokens(tokens);
+    if (parsed.errors) return;
+    const filters = Filter.parseTokens(tokens);
+    // TODO: Copy to advanced filter boxes.
+    this.props.setFilter(filters, filterInput);
+    this.store().set('f', filterInput);
   }
 
   handleChange(event) {
@@ -324,8 +322,14 @@ class FilterCollapse extends Component {
   render() {
     const { filter, setFilter, numCards, numShown, useQuery, ...props } = this.props;
     const { filterInput, advancedOpen } = this.state;
-    const tokens = [];
-    const valid = Filter.tokenizeInput(filterInput, tokens) && Filter.verifyTokens(tokens);
+    const tokens = Filter.tokenizeInput(filterInput);
+    let valid = false;
+    if (tokens.errors.length == 0 && tokens.tokens.length > 0) {
+      const parsed = Filter.verifyTokens(tokens);
+      if (parsed.errors.length == 0) {
+        valid = true;
+      }
+    }
     const appliedText =
       'Filters applied' +
       (typeof numCards !== 'undefined' ? `: ${numCards} cards` : '') +
