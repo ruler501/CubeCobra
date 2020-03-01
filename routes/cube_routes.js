@@ -62,11 +62,13 @@ let BulkUploadPage = null;
 let CubeDraftPage = null;
 let CubeListPage = null;
 let CubePlaytestPage = null;
+let CubeAnalysisPage = null;
 if (NODE_ENV === 'production') {
   BulkUploadPage = require('../dist/pages/BulkUploadPage').default;
   CubeDraftPage = require('../dist/pages/CubeDraftPage').default;
   CubeListPage = require('../dist/pages/CubeListPage').default;
   CubePlaytestPage = require('../dist/pages/CubePlaytestPage').default;
+  CubeAnalysisPage = require('../dist/pages/CubeAnalysisPage').default;
 }
 
 const { ensureAuth, csrfProtection, flashValidationErrors, jsonValidationErrors } = require('./middleware');
@@ -737,8 +739,9 @@ router.get('/list/:id', async (req, res) => {
       cardNames.push(card.details.name);
     });
 
-    const priceDict = await GetPrices([...pids]);
-    const eloDict = await getElo(cardNames, true);
+    const priceDictQ = GetPrices([...pids]);
+    const eloDictQ = getElo(cardNames, true);
+    const [priceDict, eloDict] = await Promise.all([priceDictQ, eloDictQ]);
     for (const card of cards) {
       if (card.details.tcgplayer_id) {
         if (priceDict[card.details.tcgplayer_id]) {
@@ -831,7 +834,7 @@ router.get('/playtest/:id', async (req, res) => {
 
     return res.render('cube/cube_playtest', {
       reactHTML: CubePlaytestPage
-        ? await ReactDOMServer.renderToString(React.createElement(CubePlaytestPage, reactProps))
+        ? ReactDOMServer.renderToString(React.createElement(CubePlaytestPage, reactProps))
         : undefined,
       reactProps: serialize(reactProps),
       title: `${abbreviate(cube.name)} - Playtest`,
@@ -850,12 +853,14 @@ router.get('/playtest/:id', async (req, res) => {
 
 router.get('/analysis/:id', async (req, res) => {
   try {
-    const cube = await Cube.findOne(build_id_query(req.params.id)).lean();
+    const fields = 'cards name owner defaultDraftFormat draft_formats card_count type';
+    const cube = await Cube.findOne(build_id_query(req.params.id), fields).lean();
 
     if (!cube) {
       req.flash('danger', 'Cube not found');
       return res.status(404).render('misc/404', {});
     }
+    const names = new Set();
     for (const card of cube.cards) {
       card.details = {
         ...carddb.cardFromId(card.cardID),
@@ -884,8 +889,15 @@ router.get('/analysis/:id', async (req, res) => {
           };
         });
       }
+      names.add(card.details.name);
     }
     cube.cards = await addPrices(cube.cards);
+    const eloDict = await getElo([...names], true);
+    for (const card of cube.cards) {
+      if (eloDict[card.details.name]) {
+        card.details.elo = eloDict[card.details.name];
+      }
+    }
 
     const reactProps = {
       cube,
@@ -896,6 +908,9 @@ router.get('/analysis/:id', async (req, res) => {
     };
 
     return res.render('cube/cube_analysis', {
+      reactHTML: CubeAnalysisPage
+        ? ReactDOMServer.renderToString(React.createElement(CubeAnalysisPage, reactProps))
+        : undefined,
       reactProps: serialize(reactProps),
       title: `${abbreviate(cube.name)} - Analysis`,
       metadata: generateMeta(

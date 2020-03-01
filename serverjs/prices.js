@@ -121,15 +121,23 @@ async function GetPrices(card_ids) {
 }
 
 async function addPrices(cards) {
-  const tcgplayerIds = cards.map((card) => card.tcgplayer_id).filter((id) => id);
+  const tcgplayerIds = cards.map((card) => card.details.tcgplayer_id).filter((id) => id);
   const priceDict = await GetPrices(tcgplayerIds);
   return cards.map((card) => {
     const copy = { ...card };
-    if (priceDict[copy.tcgplayer_id]) {
-      copy.price = priceDict[copy.tcgplayer_id];
+    copy.details = { ...card.details };
+    if (priceDict[copy.details.tcgplayer_id]) {
+      copy.details.price = priceDict[copy.details.tcgplayer_id];
     }
-    if (priceDict[copy.tcgplayer_id + '_foil']) {
-      copy.price_foil = priceDict[copy.tcgplayer_id + '_foil'];
+    if (priceDict[`${copy.details.tcgplayer_id}'_foil`]) {
+      copy.details.price_foil = priceDict[`${copy.details.tcgplayer_id}_foil`];
+    }
+    if (copy.price === undefined || copy.price === null) {
+      if (copy.finish === 'Foil') {
+        copy.price = copy.details.price_foil || copy.details.price;
+      } else {
+        copy.price = copy.details.price || copy.details.price_foil;
+      }
     }
     return copy;
   });
