@@ -59,8 +59,9 @@ const DecksPickBreakdown = ({ draft, seatIndex, deck, defaultIndex }) => {
   }
 
   for (let i = start + picks; i < end; i += 1) {
-    cardsInPack.push(deck.seats[current].pickorder[i]);
+    cardsInPack.push(deck.cards[deck.seats[current].pickorder[i]]);
     if (pack % 2 !== draft.initial_state[0].length % 2) {
+    if (pack % 2 === 1) {
       current += 1;
       current %= draft.initial_state.length;
     } else {
@@ -72,7 +73,7 @@ const DecksPickBreakdown = ({ draft, seatIndex, deck, defaultIndex }) => {
   }
 
   for (const list of draft.initial_state[0]) {
-    picksList.push(seat.pickorder.slice(added, added + list.length));
+    picksList.push(seat.pickorder.slice(added, added + list.length).map((cardIndex) => draft.cards[cardIndex]));
     added += list.length;
   }
 
@@ -128,6 +129,7 @@ const DecksPickBreakdown = ({ draft, seatIndex, deck, defaultIndex }) => {
 DecksPickBreakdown.propTypes = {
   draft: PropTypes.shape({
     initial_state: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.array)).isRequired,
+    cards: PropTypes.arrayOf(PropTypes.shape({ cardID: PropTypes.string })).isRequired,
   }).isRequired,
   deck: PropTypes.shape({
     _id: PropTypes.string.isRequired,
@@ -145,6 +147,7 @@ DecksPickBreakdown.propTypes = {
     ).isRequired,
     cube: PropTypes.string.isRequired,
     comments: PropTypes.arrayOf(PropTypes.object).isRequired,
+    cards: PropTypes.arrayOf(PropTypes.shape({ cardID: PropTypes.string })).isRequired,
   }).isRequired,
   seatIndex: PropTypes.number.isRequired,
   defaultIndex: PropTypes.number,

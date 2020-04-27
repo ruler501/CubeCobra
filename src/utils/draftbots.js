@@ -180,7 +180,7 @@ export const getColor = (combination, picked, card) => {
 
 const basics = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
 
-export const getFixing = (combination, picked, card) => {
+export const getFixing = (combination, _, card) => {
   let score = card.rating;
 
   const colors = fetchLands[card.details.name] ?? card.colors ?? card.details.color_identity;
@@ -242,7 +242,16 @@ export const getFixingWeight = (pack, pick, initialState) => {
   return findBestValue2d(FIXING_WEIGHTS, pack, pick, initialState);
 };
 // inPack is the number of cards in this pack
-export const botRatingAndCombination = (card, picked, seen, synergies, initialState, inPack = 1, packNum = 1) => {
+export const botRatingAndCombination = (
+  cards,
+  card,
+  picked,
+  seen,
+  synergies,
+  initialState,
+  inPack = 1,
+  packNum = 1,
+) => {
   // Find the color combination that gives us the highest score1
   // that'll be the color combination we want to play currently.
   const pickNum = initialState?.[0]?.[packNum - 1]?.length - inPack + 1;
@@ -250,13 +259,13 @@ export const botRatingAndCombination = (card, picked, seen, synergies, initialSt
   let bestCombination = [];
   for (const combination of COLOR_COMBINATIONS) {
     let rating = 0;
-    if (card && considerInCombination(combination, card)) {
+    if (card && considerInCombination(combination, cards[card])) {
       rating =
-        getRating(combination, card, initialState) * getRatingWeight(packNum, pickNum, initialState) +
-        getSynergy(combination, card, picked, synergies) * getSynergyWeight(packNum, pickNum, initialState) +
+        getRating(combination, cards[card], initialState) * getRatingWeight(packNum, pickNum, initialState) +
+        getSynergy(combination, cards[card], picked, synergies) * getSynergyWeight(packNum, pickNum, initialState) +
         getOpenness(combination, seen) * getOpennessWeight(packNum, pickNum, initialState) +
-        getColor(combination, picked, card) * getColorWeight(packNum, pickNum, initialState) +
-        getFixing(combination, picked, card) * getFixingWeight(packNum, pickNum, initialState);
+        getColor(combination, picked, cards[card]) * getColorWeight(packNum, pickNum, initialState) +
+        getFixing(combination, picked, cards[card]) * getFixingWeight(packNum, pickNum, initialState);
     } else if (!card) {
       rating = picked[combination.join('')];
     }
