@@ -51,7 +51,7 @@ const findBestValueArray = (weights, pickNumPercent) => {
 
 const findBestValue2d = (weights, packNum, pickNum, initialState) => {
   const packNumPercent = (packNum - 1) / initialState[0].length;
-  const pickNumPercent = (pickNum - 1) / initialState[0][packNum - 1].length;
+  const pickNumPercent = (pickNum - 1) / initialState[0][packNum - 1].cards.length;
   const index = weights.length * packNumPercent;
   const ceilIndex = Math.ceil(index);
   const floorIndex = Math.floor(index);
@@ -253,7 +253,8 @@ export const botRatingAndCombination = (
 ) => {
   // Find the color combination that gives us the highest score1
   // that'll be the color combination we want to play currently.
-  const pickNum = initialState?.[0]?.[packNum - 1]?.length - inPack + 1;
+  console.log(initialState, initialState[0][packNum - 1]);
+  const pickNum = initialState[0][packNum - 1].cards.length - inPack + 1;
   let bestRating = -1;
   let bestCombination = [];
   for (const combination of COLOR_COMBINATIONS) {

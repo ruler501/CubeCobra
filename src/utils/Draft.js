@@ -30,7 +30,7 @@ function init(newDraft) {
     seat.seen.cards = [];
     addSeen(
       seat.seen,
-      seat.packbacklog[0].map((cardIndex) => cards[cardIndex]),
+      seat.packbacklog[0].cards.map((cardIndex) => cards[cardIndex]),
     );
     seat.picked = fromEntries(COLOR_COMBINATIONS.map((comb) => [comb.join(''), 0]));
     seat.picked.cards = [];
@@ -46,15 +46,18 @@ function cube() {
 }
 
 function pack() {
-  return (draft.seats[0].packbacklog[0] || []).map((cardIndex) => draft.cards[cardIndex]);
+  return (draft.seats[0].packbacklog[0] || { trash: 0, cards: [] }).cards.map((cardIndex) => draft.cards[cardIndex]);
 }
 
 function packPickNumber() {
   let picks = draft.seats[draft.seats.length - 1].pickorder.length;
   let packnum = 0;
 
-  while (draft.initial_state[0][packnum] && picks >= draft.initial_state[0][packnum].length) {
-    picks -= draft.initial_state[0][packnum].length;
+  while (
+    draft.initial_state[0][packnum] &&
+    picks >= draft.initial_state[0][packnum].cards.length - draft.initial_state[0][packnum].trash
+  ) {
+    picks -= draft.initial_state[0][packnum].cards.length - draft.initial_state[0][packnum].trash;
     packnum += 1;
   }
 
@@ -92,7 +95,7 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
   let nonlands = cardIndices.filter((card) => !cardType(cards[card]).toLowerCase().includes('land'));
   const lands = cardIndices.filter((card) => cardType(cards[card]).toLowerCase().includes('land'));
 
-  const colors = botColors(cards, null, picked, null, null, synergies, initialState, 1, initialState[0].length);
+  const colors = botColors(cards, null, picked, null, synergies, initialState, 1, initialState[0].length);
   const sortFn = getSortFn(colors, cards);
   const inColor = nonlands.filter((cardIndex) => considerInCombination(colors, cards[cardIndex]));
   const outOfColor = nonlands.filter((cardIndex) => !considerInCombination(colors, cards[cardIndex]));
@@ -223,7 +226,7 @@ function botPicks() {
       packbacklog: [packFrom],
       bot,
     } = draft.seats[botIndex];
-    if (packFrom.length > 0 && bot) {
+    if (packFrom.cards.length > 0 && bot) {
       const { cards, initial_state, synergies } = draft;
       let ratedPicks = [];
       const unratedPicks = [];
@@ -246,7 +249,7 @@ function botPicks() {
       arrayShuffle(unratedPicks);
 
       const pickOrder = ratedPicks.concat(unratedPicks);
-      const pickedCard = draft.seats[botIndex].packbacklog[0].splice(pickOrder[0], 1)[0];
+      const [pickedCard] = draft.seats[botIndex].packbacklog[0].cards.splice(pickOrder[0], 1);
       draft.seats[botIndex].pickorder.push(pickedCard);
       addSeen(picked, [cards[pickedCard]]);
     }
@@ -256,7 +259,7 @@ function botPicks() {
 function passPack() {
   botPicks();
   // check if pack is done
-  if (draft.seats.every((seat) => seat.packbacklog[0].length === 0)) {
+  if (draft.seats.every((seat) => seat.packbacklog[0].cards.length <= seat.packbacklog[0].trash)) {
     // splice the first pack out
     for (const seat of draft.seats) {
       seat.packbacklog.splice(0, 1);
@@ -289,7 +292,7 @@ function passPack() {
     if (seat.packbacklog && seat.packbacklog.length > 0) {
       addSeen(
         seat.seen,
-        seat.packbacklog[0].map((cardIndex) => cards[cardIndex]),
+        seat.packbacklog[0].cards.map((cardIndex) => cards[cardIndex]),
       );
     }
   }
@@ -301,7 +304,7 @@ function sleep(ms) {
 
 async function pick(cardIndex) {
   await sleep(0);
-  const ci = draft.seats[0].packbacklog[0].splice(cardIndex, 1)[0];
+  const ci = draft.seats[0].packbacklog[0].cards.splice(cardIndex, 1)[0];
   const card = draft.cards[ci];
   const packFrom = draft.seats[0].packbacklog[0];
   draft.seats[0].pickorder.push(ci);
@@ -313,7 +316,7 @@ async function pick(cardIndex) {
       draft_id: draft._id,
       pick: card.details.name,
       packNum,
-      pack: packFrom.map((c) => draft.cards[c].details.name),
+      pack: packFrom.cards.map((c) => draft.cards[c].details.name),
     }),
     headers: {
       'Content-Type': 'application/json',
@@ -385,10 +388,15 @@ async function allBotsDraft() {
   for (const seat of draft.seats) {
     seat.bot = [];
   }
-  while (draft.seats[0].packbacklog.length > 0 && draft.seats[0].packbacklog[0].length > 0) {
+  while (draft.seats[0].packbacklog.length > 0 && draft.seats[0].packbacklog[0].cards.length > 0) {
     passPack();
   }
-  finish();
+  try {
+    await finish();
+  } catch (error) {
+    // ignore since it throws on fetch when using from routes.
+    console.debug(error);
+  }
 }
 
 export default {
