@@ -103,7 +103,9 @@ const CubeDeckPage = ({ cube, deck, canEdit, userid, draft, defaultSeat, default
           <Collapse isOpen={isOpen} navbar>
             <Nav navbar>
               <NavItem>
-                <SampleHandModal deck={deck.seats[seatIndex].deck} />
+                <SampleHandModal
+                  deck={deck.seats[seatIndex].deck.map((col) => col.map((cardIndex) => deck.cards[cardIndex]))}
+                />
               </NavItem>
               {canEdit && (
                 <NavItem>
@@ -178,6 +180,7 @@ CubeDeckPage.propTypes = {
     ).isRequired,
     cube: PropTypes.string.isRequired,
     comments: PropTypes.arrayOf(PropTypes.object).isRequired,
+    cards: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   }).isRequired,
   canEdit: PropTypes.bool,
   userid: PropTypes.string,
