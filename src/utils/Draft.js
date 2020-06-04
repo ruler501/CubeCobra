@@ -28,7 +28,6 @@ function init(newDraft) {
     const { cards } = draft;
     seat.seen = fromEntries(COLOR_COMBINATIONS.map((comb) => [comb.join(''), 0]));
     seat.seen.cards = [];
-    seat.seen.cards = 0;
     addSeen(
       seat.seen,
       seat.packbacklog[0].map((cardIndex) => cards[cardIndex]),
@@ -100,8 +99,10 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
   const lands = cards.filter((card) => cardType(cards[card]).toLowerCase().includes('land'));
 
   const colors = botColors(cards, null, picked, null, null, synergies, initialState, 1, initialState[0].length);
-  const sortFn = getSortFn(colors);
-  const inColor = nonlands.filter((item) => considerInCombination(colors, cards[item]));
+  const sortFn = getSortFn(colors, cards);
+  const considerFunc = considerInCombination(colors);
+  const inColor = nonlands.filter((cardIndex) => considerFunc(cards[cardIndex]));
+  const outOfColor = nonlands.filter((cardIndex) => !considerFunc(cards[cardIndex]));
 
   lands.sort(sortFn);
   inColor.sort(sortFn);
@@ -258,7 +259,7 @@ function botPicks() {
       const pickOrder = ratedPicks.concat(unratedPicks);
       const pickedCard = draft.seats[botIndex].packbacklog[0].splice(pickOrder[0], 1)[0];
       draft.seats[botIndex].pickorder.push(pickedCard);
-      addSeen(picked, [pickedCard]);
+      addSeen(picked, [cards[pickedCard]]);
     }
   }
 }
