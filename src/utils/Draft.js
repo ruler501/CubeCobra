@@ -1,6 +1,6 @@
 import { csrfFetch } from 'utils/CSRF';
 import { arrayIsSubset, arrayShuffle, fromEntries } from 'utils/Util';
-import { COLOR_COMBINATIONS, cardCmc, cardType } from 'utils/Card';
+import { COLOR_COMBINATIONS, cardCmc, cardColorIdentity, cardName, cardType } from 'utils/Card';
 
 import { getRating, botRatingAndCombination, considerInCombination, fetchLands, getSynergy } from 'utils/draftbots';
 
@@ -35,12 +35,6 @@ function init(newDraft) {
     seat.picked = fromEntries(COLOR_COMBINATIONS.map((comb) => [comb.join(''), 0]));
     seat.picked.cards = [];
   }
-  draft.overallPool = fromEntries(COLOR_COMBINATIONS.map((comb) => [comb.join(''), 0]));
-  draft.overallPool.cards = [];
-  addSeen(
-    draft.overallPool,
-    draft.unopenedPacks.flat(3).map((cardIndex) => draft.cards[cardIndex]),
-  );
 }
 
 function id() {
@@ -92,17 +86,16 @@ function getSortFn(bot, draftCards) {
 
 const isPlayableLand = (colors, card) =>
   considerInCombination(colors, card) ||
-  (fetchLands[card.details.name] && fetchLands[card.details.name].some((c) => colors.includes(c)));
+  (fetchLands[cardName(card)] && fetchLands[cardName(card)].some((c) => colors.includes(c)));
 
 async function buildDeck(cards, cardIndices, picked, synergies, initialState, basics) {
   let nonlands = cardIndices.filter((card) => !cardType(cards[card]).toLowerCase().includes('land'));
-  const lands = cards.filter((card) => cardType(cards[card]).toLowerCase().includes('land'));
+  const lands = cardIndices.filter((card) => cardType(cards[card]).toLowerCase().includes('land'));
 
   const colors = botColors(cards, null, picked, null, null, synergies, initialState, 1, initialState[0].length);
   const sortFn = getSortFn(colors, cards);
-  const considerFunc = considerInCombination(colors);
-  const inColor = nonlands.filter((cardIndex) => considerFunc(cards[cardIndex]));
-  const outOfColor = nonlands.filter((cardIndex) => !considerFunc(cards[cardIndex]));
+  const inColor = nonlands.filter((cardIndex) => considerInCombination(colors, cards[cardIndex]));
+  const outOfColor = nonlands.filter((cardIndex) => !considerInCombination(colors, cards[cardIndex]));
 
   lands.sort(sortFn);
   inColor.sort(sortFn);
@@ -124,11 +117,7 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
   for (let i = 0; i < size; i++) {
     // add in new synergy data
     const scores = [];
-    if (played.cards.length > 0) {
-      scores.push(nonlands.map((card) => getSynergy(colors, card, played, synergies)));
-    } else {
-      scores.push(nonlands.map((card) => getSynergy(colors, card, picked, synergies)));
-    }
+    scores.push(nonlands.map((card) => getSynergy(colors, cards[card], played, synergies)));
 
     let best = 0;
 
@@ -138,12 +127,12 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
       }
     }
     const current = nonlands.splice(best, 1)[0];
-    addSeen(played, [current]);
+    addSeen(played, [cards[current]]);
     chosen.push(current);
   }
 
-  const playableLands = lands.filter((land) => isPlayableLand(colors, land));
-  const unplayableLands = lands.filter((land) => !isPlayableLand(colors, land));
+  const playableLands = lands.filter((land) => isPlayableLand(colors, cards[land]));
+  const unplayableLands = lands.filter((land) => !isPlayableLand(colors, cards[land]));
 
   const main = chosen.concat(playableLands.slice(0, 17));
   side.push(...playableLands.slice(17));
@@ -162,7 +151,7 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
     };
 
     for (const card of main) {
-      for (const symbol of card.colors ?? card.details.color_identity) {
+      for (const symbol of cardColorIdentity(cards[card])) {
         symbols[symbol] += 1;
       }
     }
@@ -185,11 +174,11 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
       const amount = Math.floor((colorWeights[i] / totalColor) * (40 - main.length));
       console.log(`Adding ${amount} ${landDict[Object.keys(symbols)[i]]}`);
       for (let j = 0; j < amount; j++) {
-        main.push(basics[landDict[Object.keys(symbols)[i]]]);
+        main.push(cards.findIndex((card) => card.cardID === basics[landDict[Object.keys(symbols)[i]]].cardID));
       }
     }
     for (let i = main.length; i < 40; i++) {
-      main.push(basics[landDict[colors[i % colors.length]]]);
+      main.push(cards.findIndex((card) => card.cardID === basics[landDict[colors[i % colors.length]]].cardID));
     }
   }
 
@@ -204,17 +193,17 @@ async function buildDeck(cards, cardIndices, picked, synergies, initialState, ba
 
   for (const cardIndex of main) {
     const card = cards[cardIndex];
-    let index = Math.min(card.cmc ?? 0, 7);
-    if (!card.details.type.toLowerCase().includes('creature') && !card.details.type.toLowerCase().includes('basic')) {
+    let index = Math.min(cardCmc(card) ?? 0, 7);
+    if (!cardType(card).toLowerCase().includes('creature') && !cardType(card).toLowerCase().includes('basic')) {
       index += 8;
     }
     deck[index].push(cardIndex);
   }
 
   // sort the basic land col
-  deck[0].sort((a, b) => a.details.name.localeCompare(b.details.name));
+  deck[0].sort((a, b) => cardName(cards[a]).localeCompare(cardName(cards[b])));
 
-  for (const card of side) {
+  for (const cardIndex of side) {
     sideboard[Math.min(cardCmc(cards[cardIndex]) ?? 0, 7)].push(cardIndex);
   }
 
@@ -235,7 +224,7 @@ function botPicks() {
       bot,
     } = draft.seats[botIndex];
     if (packFrom.length > 0 && bot) {
-      const { cards, overallPool, initial_state, synergies } = draft;
+      const { cards, initial_state, synergies } = draft;
       let ratedPicks = [];
       const unratedPicks = [];
       const inPack = packFrom.length;
@@ -249,7 +238,7 @@ function botPicks() {
       }
       ratedPicks = ratedPicks
         .map((cardIndex) => [
-          botRating(cards, packFrom[cardIndex], picked, seen, overallPool, synergies, initial_state, inPack, packNum),
+          botRating(cards, packFrom[cardIndex], picked, seen, synergies, initial_state, inPack, packNum),
           cardIndex,
         ])
         .sort(([a], [b]) => b - a)

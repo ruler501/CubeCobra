@@ -141,7 +141,6 @@ export const getSynergy = (combination, card, picked, synergies) => {
   if (picked.cards.length === 0) {
     return 0;
   }
-
   let synergy = 0;
   if (synergies) {
     const pickedInCombo = picked.cards.filter((card2) => considerInCombination(combination, card2));

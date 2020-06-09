@@ -1996,14 +1996,7 @@ const saveDeckFromDraft = async (draft) => {
   deck.cubename = cube.name;
   deck.seats = [];
   const basics = getBasics(carddb);
-  deck.cards = draft.cards.concat([
-    basics.Plains,
-    basics.Island,
-    basics.Swamp,
-    basics.Mountain,
-    basics.Forest,
-    basics.Wastes,
-  ]);
+  deck.cards = draft.cards;
 
   for (const seat of draft.seats) {
     deck.seats.push({
@@ -2094,9 +2087,16 @@ router.post(
       draft.initial_state = initialState;
       draft.unopenedPacks = unopenedPacks;
       draft.seats = seats;
-      draft.cards = cards;
-      draft.cube = cube._id;
       draft.basics = getBasics(carddb);
+      draft.cards = cards.concat([
+        draft.basics.Plains,
+        draft.basics.Island,
+        draft.basics.Swamp,
+        draft.basics.Mountain,
+        draft.basics.Forest,
+        draft.basics.Wastes,
+      ]);
+      draft.cube = cube._id;
 
       const response = await fetch(`${process.env.FLASKROOT}/embeddings/`, {
         method: 'post',

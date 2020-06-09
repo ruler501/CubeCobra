@@ -25,6 +25,7 @@ let draftSchema = mongoose.Schema({
     Swamp: cardSchema,
     Mountain: cardSchema,
     Forest: cardSchema,
+    Wastes: cardSchema,
   },
   unopenedPacks: [[[Number]]],
 });

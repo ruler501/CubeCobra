@@ -491,7 +491,7 @@ const methods = {
       }
     }
     let found = false;
-    const options = carddb.nameToId.wastes;
+    const options = carddb.getIdsFromName('Wastes');
     for (const option of options) {
       const card = carddb.cardFromId(option);
       if (!found && card.set.toLowerCase() === 'ogw') {
@@ -504,7 +504,6 @@ const methods = {
         };
       }
     }
-
     return res;
   },
   setCubeType,
