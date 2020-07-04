@@ -3,6 +3,7 @@ set -e
 
 mkdir -p dist/generated/filtering;
 nearleyc nearley/cubeFilters.ne -o dist/generated/filtering/cubeFilters.js;
+nearleyc nearley/magicCard.ne -o dist/generated/magicCardGrammar.js
 
 mkdir -p src/generated/filtering;
 nearleyc nearley/cardFilters.ne -o src/generated/filtering/cardFilters.js;
