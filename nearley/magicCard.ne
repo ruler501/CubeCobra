@@ -1,7 +1,6 @@
 @builtin "whitespace.ne"
-# Base on https://github.com/Soothsilver/mtg-grammar/blob/master/mtg.g4
-
-card -> "\n":* ability ("\n":+ ability):* {% ([, a, as]) => [a, ...as.map(([, a2]) => a2)] %}
+# Based on https://github.com/Soothsilver/mtg-grammar/blob/master/mtg.g4
+card -> "\n":* ability:? ("\n":+ ability):* "\n":? {% ([, a, as]) => a ? [a, ...as.map(([, a2]) => a2).filter((a) => a)] : [] %}
 ability -> (abilityWordAbility
   | activatedAbility
   | additionalCostToCastSpell
@@ -9,12 +8,12 @@ ability -> (abilityWordAbility
   | modalAbility
   | staticOrSpell
   | triggeredAbility
-  | continuousEffect
+  | reminderText # TODO: Make sure this doesn't show up in the AST
 ) ".":? (_ reminderText):? {% ([[a]]) => a %}
 
 reminderText -> "(" [^)]:+ ")"
 
-modalAbility -> "choose"i _ modalQuantifier _ DASHDASH modalOption ("\n" modalOption):* {% ([, , quantifier, , , option, options]) => ({ quantifier, options: [option, ...options.map(([, o]) => o)] }) %}
+modalAbility -> "choose"i _ modalQuantifier _ DASHDASH (_ modalOption):+ {% ([, , quantifier, , , options]) => ({ quantifier, options: options.map(([, o]) => o) }) %}
 modalOption -> ("*" | "•") _ effect {% ([, , e]) => e %}
 modalQuantifier -> "one or both"i {% () => [1, 2] %}
   | "one" {% () => [1] %}
@@ -158,7 +157,8 @@ keyword -> ("deathtouch"i
   | spectacleKeyword
   | escapeKeyword
   | companionKeyword
-  | mutateKeyword) {% ([[keyword]]) => ({ keyword }) %}
+  | mutateKeyword
+  | megamorphKeyword) {% ([[keyword]]) => keyword %}
 cyclingKeyword -> "cycling"i _ cost {% ([, , cost]) => ({ cycling: cost }) %}
 enchantKeyword -> "enchant"i _ anyEntity {% ([, , entity]) => ({ enchant: entity }) %}
 equipKeyword -> "equip"i _ cost {% ([, , cost]) => ({ equip: cost }) %}
@@ -185,6 +185,58 @@ mutateKeyword -> "mutate"i _ cost {% ([, , mutate]) => ({ mutate }) %}
 bestowKeyword -> "bestow"i _ cost {% ([, , bestow]) => ({ bestow }) %}
 scavengeKeyword -> "scavenge"i _ cost {% ([, , scavenge]) => ({ scavenge }) %}
 overloadKeyword -> "overload"i _ cost {% ([, , overload]) => ({ overload }) %}
+buybackKeyword -> "buyback"i _ cost {% ([, , buyback]) => ({ buyback }) %}
+rampageKeyword -> "rampage"i _ number {% ([, , rampage]) => ({ rampage }) %}
+echoKeyword -> "echo"i _ cost {% ([, , echo]) => ({ echo }) %}
+fadingKeyword -> "fading"i _ number {% ([, , fading]) => ({ fading }) %}
+kickerKeyword -> "kicker"i _ costs {% ([, , kicker]) => ({ kicker }) %}
+flashbackKeyword -> "flashback"i _ cost {% ([, , flashback]) => ({ flashback }) %}
+madnessKeyword -> "madness"i _ cost {% ([, , madness]) => ({ madness }) %}
+morphKeyword -> "morph"i _ cost {% ([, , morph]) => ({ morph }) %}
+amplifyKeyword -> "amplify"i _ number {% ([, , amplify]) => ({ amplify }) %}
+entwineKeyword -> "entwine"i _ cost {% ([, , entwine]) => ({ entwine }) %}
+modularKeyword -> "modular"i _ number {% ([, , module]) => ({ modular }) %}
+bushidoKeyword -> "bushido"i _ number {% ([, , bushido]) => ({ bushido }) %}
+ninjutsuKeyword -> "ninjutsu"i _ cost {% ([, , ninjutsu]) => ({ ninjutsu }) %}
+dredgeKeyword -> "dredge"i _ number {% ([, , dredge]) => ({ dredge }) %}
+transmuteKeyword -> "transmute"i _ cost {% ([, , transmute]) => ({ transmute }) %}
+bloodthirstKeyword -> "bloodthirsty"i _ number {% ([, , bloodthirsty]) => ({ bloodthirsty }) %}
+replicateKeyword -> "replicate"i _ cost {% ([, , replicate]) => ({ replicate }) %}
+graftKeyword -> "graft"i _ number {% ([, , graft]) => ({ graft }) %}
+recoverKeyword -> "recover"i _ cost {% ([, , recover]) => ({ recover }) %}
+rippleKeyword -> "ripple"i _ number {% ([, , ripple]) => ({ ripple }) %}
+suspendKeyword -> "suspend"i _ number _ DASHDASH _ cost {% ([, , suspend, , , , cost]) => ({ suspend, cost }) %}
+vanishingKeyword -> "vanishing"i _ number {% ([, , vanishing]) => ({ vanishing }) %}
+absordKeyword -> "absorb"i _ number {% ([, , absorb]) => ({ absorb }) %}
+fortifyKeyword -> "fortify"i _ cost {% ([, , fortify]) => ({ fortify }) %}
+frenzy -> "frenzy"i _ number {% ([, , frenzy]) => ({ frenzy }) %}
+poisonousKeyword -> "poisonous"i _ number {% ([, , poisonous]) => ({ poisonous }) %}
+evokeKeyword -> "evoke"i _ cost {% ([, , evoke]) => ({ evoke }) %}
+devourKeyword -> "devour"i _ number {% ([, , devour]) => ({ devour }) %}
+unearthKeyword -> "unearth"i _ cost {% ([, , unearth]) => ({ unearth }) %}
+annihilatorKeyword -> "annihilator"i _ number {% ([, , annihilator]) => ({ annihilator }) %}
+levelUpKeyword -> "level up"i _ cost {% ([, , levelUp]) => ({ levelUp }) %}
+miracleKeyword -> "miracle"i _ cost {% ([, , miracle]) => ({ miracle }) %}
+megamorphKeyword -> "megamorph"i _ cost {% ([, , megamorph]) => ({ megamorph }) %}
+affinityKeyword -> "affinity for"i _ object {% ([, , affinityFor]) => ({ affinityFor }) %}
+partnerKeyword -> "partner"i {% () => "partner" %}
+  | "partner with"i _ [^\n]:+ {% ([, , partnerWith]) => ({ partnerWith: partnerWith.join('') }) %}
+offeringKeyword -> object _ "offering" {% ([offering]) => ({ offering }) %}
+frenzyKeyword -> "frenzy"i _ number {% ([, , frenzy]) => ({ frenzy }) %}
+soulshiftKeyword -> "soulshift"i _ number {% ([, , soulshift]) => ({ soulshift }) %}
+spliceKeyword -> "splice onto"i _ object _ cost {% ([, , spliceOnto, , cost]) => ({ spliceOnto, cost }) %}
+forecastKeyword -> "forecast"i _ DASHDASH _ activatedAbility {% ([, , , , forecast]) => ({ forecast }) %}
+championKeyword -> "champion"i _ object {% ([, , champion]) => ({ champion }) %}
+protectionKeyword -> "protection from"i _ anyEntity {% ([, , protectionFrom]) => ({ protectionFrom }) %}
+prowlKeyword -> "prowl"i _ cost {% ([, , prowl]) => ({ prowl }) %}
+reinforceKeyword -> "reinforce"i _ number _ DASHDASH _ cost {% ([, , reinforce, , , , cost]) => ({ reinforce, cost }) %}
+transfigureKeyword -> "transfigure"i _ cost {% ([, , transfigure]) => ({ transfigure }) %}
+bandingKeyword -> "banding"i {% () => ({ bandsWith: "any" }) %}
+  | "bands with"i _ object {% () => ({ bandsWith: object }) %}
+landwalkKeyword -> anyType "walk" {% ([landwalk]) => ({ landwalk }) %}
+  | "nonbasic landwalk"i {% () => ({ landwalk: { not: { type: "basic" } } }) %}
+  | "snow landwalk"i {% () => ({ landwalk: { type: "snow" } }) %}
+auraSwapKeyword -> "aura swap"i _ cost {% ([, , auraSwap]) => ({ auraSwap }) %}
 
 abilityWordAbility -> abilityWord _ DASHDASH _ ability {% ([aw, , , , a]) => ({ [aw]: a }) %}
 abilityWord ->  ("adamant"i
@@ -226,10 +278,10 @@ abilityWord ->  ("adamant"i
   | "temptingoffer"i
   | "threshold"i
   | "undergrowth"i
-  | "will of the council"i) {% ([[aw]]) => aw %}
+  | "will of the council"i) {% ([[aw]]) => aw.toLowerCase() %}
 
-activatedAbility -> costs ":" _ effect (_ activationInstructions):? {% ([costs, , , effect, i]) => {
-  const result = { costs, effect };
+activatedAbility -> costs ":" _ effect (_ activationInstructions):? {% ([costs, , , activatedAbility, i]) => {
+  const result = { costs, activatedAbility };
   if (i) result.instructions = i;
   return result;
 } %}
@@ -237,12 +289,15 @@ activationInstructions -> "activate this ability only "i activationInstruction "
   | "any player may activate this ability."i {% () => "anyPlayer" %}
 activationInstruction -> "once each turn"i {% () => "onceATurn" %}
   | "any time you could cast a sorcery"i {% () => "sorceryOnly" %}
+  | "if" _ player _ "control" "s":? _ object {% ([, , who, , , , , controls]) => ({ who, controls }) %}
+  | "only if" _ condition {% ([, , condition]) => ({ condition }) %}
 # TODO: Make into AST
-activatedAbilities -> (itsPossessive _):? "activated abilities"i
-activatedAbilitiesVP -> "can't be activated"i
+activatedAbilities -> (itsPossessive _):? "activated abilities"i {% ([reference]) => reference ? { whose: reference, activatedAbilities: "any" } : { activatedAbilities: "any" } %}
+  | "activated abilities of"i _ object {% ([, , activatedAbilities]) => ({ whose: activatedAbilities, activatedAbilities: true }) %}
+activatedAbilitiesVP -> CAN_T _ "be activated"i (_ "unless they're mana abilities."):? {% ([, , , , manaOnly]) => manaOnly ? { cant: "activatedAbilities", unless: "manaAbility" } : { cant: "activatedAbilities" } %}
 
-triggeredAbility -> triggerCondition "," _ interveningIfClause:? effect {% ([condition, , , ifClause, effect]) => {
-  const result = { condition, effect };
+triggeredAbility -> triggerCondition "," _ interveningIfClause:? effect {% ([trigger, , , ifClause, effect]) => {
+  const result = { trigger, effect };
   if (ifClause) result.ifClause = ifClause
   return result;
 } %}
@@ -255,339 +310,436 @@ triggerCondition -> ("when"i | "whenever"i) _ triggerConditionInner (_ triggerTi
   | "at end of combat"i {% () => ({ turnPhase: "endCombat" }) %}
 triggerConditionInner -> singleSentence {% ([s]) => s %}
   | "you cast "i object {% ([, cast]) => ({ cast }) %}
-  | player _ gains _ "life"i {% ([actor]) => ({ actor, action: "gainsLife" }) %}
-  | object " is dealth damage"i {% ([actor]) => ({ actor, action: "dealtDamage" }) %}
+  | player _ gains _ "life"i {% ([actor]) => ({ actor, does: "gainsLife" }) %}
+  | object _ "is dealt damage"i {% ([what]) => ({ what, does: "dealtDamage" }) %}
+  | object _ objectVerbPhrase {% ([what, , does]) => ({ what, does }) %}
 interveningIfClause -> "if "i condition "," {% ([, c]) => c %}
 triggerTiming -> "each turn"i {% () => "eachTurn" %}
   | "during each opponent" SAXON _ "turn" {% () => "eachOpponentTurn" %}
 
-additionalCostToCastSpell -> "as an additional cost to cast this spell," _ imperative "." {% ([, , additionalCost]) => ({ additionalCost }) %}
+additionalCostToCastSpell -> "as an additional cost to cast this spell,"i _ imperative "." {% ([, , additionalCost]) => ({ additionalCost }) %}
 
 staticOrSpell -> sentenceDot {% ([sd]) => sd %}
 effect -> (sentenceDot
   | modalAbility) {% ([[e]]) => e %}
 
-sentenceDot -> sentence "." (_ additionalSentence):* {% ([s, , ss]) => [s, ...ss.map(([, s2]) => s2)] %}
-additionalSentence -> sentence "." {% ([s]) => s %}
+sentenceDot -> sentence (".":? _ additionalSentence):* ".":? {% ([s, ss]) => [s, ...ss.map(([, , s2]) => s2)] %}
+additionalSentence -> sentence {% ([s]) => s %}
   | triggeredAbility {% ([t]) => t %}
 
 sentence -> singleSentence {% ([ss]) => ss %}
-  | "Then" _ sentence {% ([, , s]) => s %}
-  | singleSentence (",":? (("then"i | "and"i):? _):? sentence):+ # TODO: ASTize
+  | "then"i _ sentence {% ([, , s]) => s %}
+  | singleSentence (("," | "then" | "and") _ (("then"i | "and"i):? _):? sentence):+ {% ([s, ss]) => ({ and: [s, ...ss.map(([, , , s2]) => s2)] }) %}
   | "otherwise,"i _ sentence {% ([, , otherwise]) => ({ otherwise }) %}
 singleSentence -> imperative {% ([i]) => i %}
-  | singleSentence _ "and"i _ singleSentence # TODO: ASTize and check if is ambiguous
   | singleSentence ", where X is"i _ numberDefinition {% ([singleSentence, , , X]) => ({ singleSentence, X }) %}
-  | object _ objectVerbPhrase {% ([what, , does]) => { what, does } %}
+  | object _ objectVerbPhrase {% ([what, , does]) => ({ what, does }) %}
   | IT_S _ isWhat {% ([, , is]) => ({ is }) %}
-  | player _ playerVerbPhrase {% ([actor, , does]) => { actor, does } %}
+  | player _ playerVerbPhrase {% ([actor, , does]) => ({ actor, does }) %}
   | "if"i _ sentence "," _ replacementEffect # TODO: ASTize
   | "if"i _ condition "," _ sentence {% ([, , condition, , , effect]) => ({ condition, effect }) %}
-  | "if"i _ object _ "would"i (objectVerbPhrase | objectInfinitive) "," _ sentenceInstead # TODO: ASTize
+  | "if"i _ object _ "would"i _ (objectVerbPhrase | objectInfinitive) "," _ sentenceInstead # TODO: ASTize
   | "if"i _ player _ "would"i _ playerVerbPhrase "," _ sentenceInstead # TODO: ASTize
   | asLongAsClause "," _ sentence {% ([asLongAs, , , effect]) => ({ asLongAs, effect }) %}
   | duration "," _ sentence {% ([duration, , , effect]) => ({ duration, effect }) %}
   | "for each"i _ object "," _ sentence {% ([, , forEach, , , effect]) => ({ forEach, effect }) %}
-  | activatedAbilities _ activatedAbilitiesVP # TODO: ASTize
+  | activatedAbilities _ activatedAbilitiesVP {% ([abilities, , effect]) => ({ ...abilities, ...effect }) %}
   | itsPossessive _ numericalCharacteristic _ "is equal to"i _ numberDefinition # TODO: ASTize
   | "as"i sentence "," _ sentence # TODO: ASTize
+  | "instead"i _ singleSentence {% ([, , instead]) => ({ instead }) %}
 sentenceInstead -> sentence _ "instead"i {% ([instead]) => ({ instead }) %}
   | "instead"i _ sentence {% ([, ,instead]) => ({ instead }) %}
 
 forEachClause -> "for each" _ pureObject {% ([, , forEach]) => ({ forEach }) %}
  | "for each color of mana spent to cast"i _ object {% ([, , forEachColorSpent]) => ({ forEachColorSpent }) %}
 
-condition -> sentence
-  | YOU_VE _ action _ duration
-  | IT_S _ "your turn"i
+condition -> sentence {% ([s]) => s %}
+  | (YOU_VE | "you") _ action _ duration {% ([, , done, , during]) => ({ done, during }) %}
+  | IT_S _ "your turn"i {% () => "yourTurn" %}
   | IT_S _ "not" _ playersPossessive _ "turn" {% ([, , notTurnOf]) => ({ notTurnOf }) %}
-  | object _ "has"i countableCount _ (counterKind _):? "counters on it"i
-  | numberDefinition _ "is"i _ numericalComparison
-  | "that mana is spent on"i _ object
-  | "is paired with another creature"i
+  | object _ "has"i _ countableCount _ (counterKind _):? "counter" "s":? "on it"i {% ([object, , , count, , hasCounter]) => ({ object, count, hasCounter }) %}
+  | numberDefinition _ "is"i _ numericalComparison {% ([number, , , , is]) => ({ number, is }) %}
+  | "that mana is spent on"i _ object {% ([, , manaSpentOn]) => ({ manaSpentOn }) %}
+  | ("is" _):? "paired" _ withClause {% ([, , , pairedWith]) => ({ pairedWith }) %}
+  | ("is" _):? "untapped" {% () => "untapped" %}
 
-action -> "scried"
-  | "surveiled"
+action -> "scried" {% () => "scried" %}
+  | "surveilled" {% () => "surveilled" %}
 
-entity -> object
-  | player
-anyEntity -> object
-  | pureObject
-  | player
-  | purePlayer
-player -> "you"i
-  | "they"i
-  | commonReferencingPrefix _ purePlayer
-  | "your" _ ("opponent" | "opponents")
-  | "defending player"
-  | itsPossessive _ ("controller"i | "owner"i | "owners"i | "controllers"i)
-  | player _ "who" _ CAN_T
-purePlayer -> "opponent"i
-  | "player"i
-  | "players"i
-  | "opponents"i
-object -> CARD_NAME {% () => "CARD_NAME" %}
-  | "it"i {% () => "it" %}
+entity -> (object 
+  | player) {% ([[e]]) => e %}
+anyEntity -> object {% ([e]) => e %}
+  | pureObject {% ([e]) => e %}
+  | player {% ([e]) => e %}
+  | purePlayer {% ([e]) => e %}
+  | color {% ([color]) => ({ color }) %}
+  | "everything" {% () => "everything" %}
+player -> "you"i {% () => "you" %}
+  | "they"i {% () => "they" %}
+  | commonReferencingPrefix _ purePlayer {% ([reference, , player]) => ({ reference, player }) %}
+  | "your opponent" "s":? {% ([, plural]) => plural ? "opponent" : "opponents" %}
+  | "defending player" {% () => "defendingPlayer" %}
+  | itsPossessive _ "controller"i "s":? {% () => "objectsController" %}
+  | itsPossessive _ "owner"i "s":? {% () => "objectsOwner" %}
+  | "player" {% () => "player" %}
+  | "each of" _ player {% ([, , each]) => ({ each }) %}
+purePlayer -> "opponent"i {% () => "opponent" %}
+  | "player"i {% () => "player" %}
+  | "players"i {% () => "players" %}
+  | "opponents"i {% () => "opponents" %}
+object -> (referencingObjectPrefix _):? objectInner {% ([reference, object]) => reference ? { reference: reference[0], object } : object %}
+objectInner -> "it"i {% () => "it" %}
   | "them"i {% () => "them" %}
   | "they"i {% () => "they" %}
-  | "the rest"i {% () => "rest" %}
-  | "the other"i {% () => "other" %}
+  | "rest"i {% () => "rest" %}
+  | "other"i {% () => "other" %}
   | "this emblem"i {% () => "emblem" %}
-  | referencingObjectPrefix _ object {% ([reference, , object]) => ({ reference, object }) %}
   | object _ THAT_S _ isWhat {% ([object, , , , condition]) => ({ object, condition }) %}
   | object ("," _ object):* ",":? _ ("and"i {% () => "and" %} | "or"i {% () => "xor" %} | "and/or"i {% () => "or" %}) _ object {% ([o, os, , , connector, , o2]) => ({ [connector]: [o, ...os.map(([, , o3]) => o3), o2] }) %}
-  | cumulativeReferencingPrefix pureObject {% ([cumulativeReference, object]) => ({ cumulativeReference, object }) %}
   | pureObject {% ([po]) => po %}
   | "each of"i _ object {% ([, , eachOf]) => ({ eachOf }) %}
   | "the top"i _ englishNumber _ "cards of"i _ zone {% ([, , topCards, , , , from]) => ({ topCards, from }) %}
+  | "the top of" _ zone {% ([, , topOf]) => ({ topOf }) %}
   | "the top card of"i _ zone {% ([, , from]) => ({ topCards: 1, from }) %}
-suffix -> player _ ((DON_T | DOESN_T) _):? ("control"i | "own"i) "s":?
-  | "in"i _ zone (_ "and in"i _ zone):?
-  | "from"i _ zone
-  | "you cast"i
-  | "that targets only"i _ object
-  | "tapped this way"i
-  | ("destroyed"i | "exiled"i) _ (fromZone _):? "this way"i
-  | "of the"i _ anyType _ "type of"i _ playersPossessive _ "choice"i
-  | object _ "could target"i
-  | "able to block"i _ object
-  | "that convoked"i _ object
-  | "from among them"i
-  | "named"i _ CARD_NAME
-  | YOU_VE _ "cast before it this turn"i
-  | "not named"i _ CARD_NAME {% ([, , notNamed]) => { notNamed } %}
-pureObject -> prefix:+ _ pureObject
-  | "copy"i (_ "of" _ object):?
-  | "copies"i
-  | "card"i
-  | anyType "s":?
-  | cumulativeReferencingPrefix _ pureObject
-  | pureObject ("," _ pureObject):* _ ("and"i | "or"i | "and/or"i) _ pureObject
-  | pureObject _ "without"i _ keyword
-  | pureObject _ withClause
-  | pureObject _ suffix
-referencingObjectPrefix -> "the sacrificed"i
-  | "the exiled"i
-  | "any of"i
-  | "the"i
-  | commonReferencingPrefix
-  | countableCount
-cumulativeReferencingPrefix -> "other"i
-  | "equipped"i
-commonReferencingPrefix -> "each"i
-  | "all"i (_ "the"):?
-  | "this"i
-  | "enchanted"i
-  | "that"i
-  | "these"i
-  | "those"i
-  | "another"i
-  | "an"i
-  | "a"i
-  | "the chosen"i
-  | "at least"i _ englishNumber
-  | countableCount (_ commonReferencingPrefix):?
-  | ("another"i _):? (countableCount _):? "target"i "s":? 
-prefix -> "enchanted"i
-  | "attached"i
-  | "equipped"i
-  | "non"i ("-" | _):? anyType
-  | "exiled"i
-  | anyType
-  | "token"i
-  | "nontoken"i
-  | color
-  | "tapped"i
-  | "untapped"i
-  | pt
-  | "legendary"i
-  | "attacking"i
-  | "blocking"i
-  | "attacking" _ "or" _ "blocking"
+  | (counterKind _):? "counter"i "s":? _ "on" _ object {% ([kind, , , , , , countersOn]) => kind ? { counterType: kind[0], countersOn } : { countersOn } %}
+suffix -> player _ ((DON_T | DOESN_T) _):? ("control"i | "own"i) "s":? {% ([who, negate, , possessive]) => ({ who, [possessive]: !negate }) %}
+  | "in"i _ zone (_ "and in"i _ zone):? {% ([, , zone, zone2]) => ({ zone: zone2 ? { and: [zone, zone2[3]] } : zone }) %}
+  | "from"i _ zone {% ([, , from]) => ({ from }) %}
+  | ("that" _):? "you cast"i {% () => "youCast" %}
+  | "that" _ didAction (_ duration):? {% ([, , didAction, when]) => when ? { didAction, when: when[1] } : { didAction } %}
+  | "that targets only"i _ object {% ([, , onlyTargets]) => ({ onlyTargets }) %}
+  | "that targets"i _ anyEntity {% ([, , targets]) => ({ targets }) %}
+  | "tapped this way"i {% () => "tappedThisWay" %}
+  | ("destroyed"i | "exiled"i) _ (fromZone _):? "this way"i # TODO: ASTize
+  | "of the"i _ anyType _ "type of"i _ playersPossessive _ "choice"i # TODO ASTize
+  | object _ "could target"i {% ([couldTarget]) => ({ couldTarget }) %}
+  | "able to block"i _ object {% ([, , canBlock]) => ({ canBlock }) %}
+  | "that convoked"i _ object {% ([, , convoked]) => ({ convoked }) %}
+  | "from among them"i {% () => "amongThem" %}
+  | "named"i _ CARD_NAME {% ([, , named]) => ({ named }) %}
+  | YOU_VE _ "cast before it this turn"i {% () => "youveCastBeforeThisTurn" %}
+  | "not named"i _ CARD_NAME {% ([, , named]) => ({ not: { named } }) %}
+  | "attached to" _ object {% ([, , attachedTo]) => ({ attachedTo }) %}
+pureObject -> (prefix _):? pureObjectInner (_ suffix):? {% ([prefix, object, suffix]) => {
+  if (!prefix && !suffix) return object;
+  const result = { object };
+  if (prefix) result.prefix = prefix[0]
+  if (suffix) result.suffix = suffix[1];
+  return result;
+} %}
+pureObjectInner -> "copy"i (_ "of" _ object):? {% ([, copyOf]) => copyOf ? { copyOf } : "copy" %}
+  | "copies"i {% () => "copies" %}
+  | "card"i "s":? {% () => "card" %}
+  | anyType "s":? {% ([type]) => ({ type }) %}
+  | cumulativeReferencingPrefix _ pureObject {% ([reference, , object]) => ({ reference, object }) %}
+  | pureObject ("," _ pureObject):* _ ("and"i {% () => "and" %} | "or"i {% () => "xor" %} | "and/or"i {% () => "or" %}) _ pureObject {% ([o1, os, , connector, , o2]) => ({ [connector]: [o1, ...os.map(([, , o3]) => o3), o2] }) %}
+  | pureObject _ "without"i _ keyword {% ([object, , , , without]) => ({ object, without }) %}
+  | pureObject _ withClause {% ([object, , condition]) => ({ object, condition }) %}
+  | CARD_NAME {% ([c]) => c %}
+referencingObjectPrefix -> "the sacrificed"i {% () => "sacrificed" %}
+  | "the exiled"i {% () => "exiled" %}
+  | "any of"i {% () => "any" %}
+  | "the"i {% () => "the" %}
+  | "the rest of"i {% () => "rest" %}
+  | commonReferencingPrefix {% ([p]) => p %}
+  | countableCount {% ([count]) => ({ count }) %}
+cumulativeReferencingPrefix -> "other"i {% () => "other" %}
+  | "equipped"i {% () => "equipped" %}
+commonReferencingPrefix -> countableCount (_ commonReferencingPrefixInner):? {% ([count, additional]) => additional ? { count, reference: additional[1] } : { count } %}
+  | ("another"i _):? (countableCount _):? "target"i "s":?  {% ([another, count]) => {
+    const targetCount = count ? count[0] : 1;
+    return another ? { another: true, targetCount } : { targetCount }
+  } %}
+  | commonReferencingPrefixInner {% ([i]) => i %}
+commonReferencingPrefixInner -> "each"i {% () => "each" %}
+  | "this"i {% () => "this" %}
+  | "enchanted"i {% () => "enchanted" %}
+  | "equipped"i {% () => "equipped" %}
+  | "that"i {% () => "that" %}
+  | "that player" SAXON {% () => "thatPlayer" %}
+  | "these"i {% () => "these" %}
+  | "those"i {% () => "thsoe" %}
+  | "another"i {% () => "another" %}
+  | "the chosen"i {% () => "chosen" %}
+  | "at least"i _ englishNumber {% ([, , atLeast]) => ({ atLeast }) %}
+prefix -> "enchanted"i {% () => "enchanted" %}
+  | "attached"i {% () => "attached" %}
+  | "equipped"i {% () => "equipped" %}
+  | "non"i ("-" | _):? anyType {% ([, , type]) => ({ not: { type } }) %}
+  | "exiled"i {% () => "exiled" %}
+  | "the revealed"i {% () => "revealed" %}
+  | anyType {% ([type]) => ({ type }) %}
+  | "token"i {% () => "token" %}
+  | "nontoken"i {% () => ({ not: "token" }) %}
+  | color {% ([color]) => ({ color }) %}
+  | "face-down" {% () => "faceDown" %}
+  | "tapped"i {% () => "tapped" %}
+  | "untapped"i {% () => ({ not: "tapped" }) %}
+  | pt {% ([size]) => ({ size }) %}
+  | "attacking"i {% () => "attacking" %}
+  | "blocking"i {% () => "blocking" %}
+  | "attacking" _ "or" _ "blocking" {% () => ({ or: ["attacking", "blocking"] }) %}
 
-imperative -> "sacrifice"i _ object
-  | "destroy"i _ object {% ([, , destroy]) => ({ destroy }) %}
+didAction -> "dealt damage" {% () => "dealtDamage" %}
+
+imperative -> "sacrifice"i _ object {% ([, , sacrifice]) => ({ sacrifice }) %}
+  | "fateseal"i _ number {% ([, , fateseal]) => ({ fateseal }) %}
+  | "destroy"i "s":? _ object {% ([, , , destroy]) => ({ destroy }) %}
   | "detain"i _ object {% ([, , detain]) => ({ detain }) %}
-  | "discard"i _ object {% ([, , discard]) => ({ discard }) %}
-  | "return"i _ object (_ fromZone):? _ "to"i _ zone
-  | "exile"i _ object (_ "face down"):? (_ untilClause):? {% ([, , exile, faceDown, until]) => {
+  | "discard"i "s":? _ object {% ([, , , discard]) => ({ discard }) %}
+  | "return"i "s":? _ object _ "to"i _ zone (_ "tapped"):? {% ([, , , returns, , , , to, tapped]) => tapped ? { returns, to, tapped: true } : { returns, to } %}
+  | "exile"i "s":? _ object (_ "face down"):? (_ untilClause):? {% ([, , , exile, faceDown, until]) => {
     const result = { exile };
     if (faceDown) result.faceDown = true;
     if (until) result.until = until[1];
     return result;
   } %}
-  | "create"i _ tokenDescription {% ([, , create]) => ({ create }) %}
+  | "create"i "s":? _ tokenDescription {% ([, , , create]) => ({ create }) %}
   | "copy"i _ object {% ([, , copy]) => ({ copy }) %}
   | "lose"i "s":? _ number _ "life"i {% ([, , , lifeLoss]) => ({ lifeLoss }) %}
   | "mills"i _ englishNumber _ "card"i "s":? {% ([, , mills]) => ({ mills }) %}
   | gains _ number _ "life"i {% ([, , lifeGain]) => ({ lifeGain }) %}
-  | gains _ "control of" _ object {% ([, , , , gainsControlOf]) => ({ gainsControlOf }) %}
-  | "remove"i _ countableCount _ (counterKind _):? "counters from"i _ object
-  | ("cast"i | "play"i) "s"i:? _ object (_ "without paying"i _ IT_S _ "mana cost"i):? (_ duration):?
+  | gains _ "control of" _ object (_ untilClause):? {% ([, , , , gainsControlOf, until]) => until ? { gainsControlOf, until } : { gainsControlOf } %}
+  | "remove"i _ countableCount _ (counterKind _):? "counter" "s":? _ "from"i _ object {% ([, , count, , counterKind, , , , , , removeCountersFrom]) => counterKind ? { count, removeCountersFrom, counterKind: counterKind[0] } : { count, removeCountersFrom } %}
+  | ("cast"i | "play"i) "s"i:? _ object (_ "without paying"i _ IT_S _ "mana cost"i):? (_ duration):? {% ([[cp], , , cast, withoutPaying, duration]) => {
+    const result = { [cp.toLowerCase()]: cast };
+    if (withoutPaying) result.withoutPaying = true;
+    if (duration) result.duration = duration[1];
+    return result;
+  } %}
   | "surveil"i _ number {% ([, , surveil]) => ({ surveil }) %}
-  | "search"i _ zone (_ "for"i _ object):?
-  | ("you"i _):? "choose"i _ object
-  | ("you"i _):? "draw"i "s"i:? _ ("a"i _ "card"i | "an additional card"i | englishNumber _ "card"i "s")
-  | "shuffle"i "s":? _ zone
-  | "shuffle"i "s":? _ (object | zone) _ "into" _ zone
-  | "counter"i _ object
+  | "search"i _ zone (_ "for"i _ object):? {% ([, , search, criteria]) => criteria ? { search, criteria: criteria[3] } : search %}
+  | "choose"i _ object {% ([, , choose]) => ({ choose }) %}
+  | "draw"i "s":? _ ("a"i _ "card"i {% () => 1 %} | "an additional card"i {% () => 1 %} | englishNumber _ "card"i "s" {% ([n]) => n %}) {% ([, , , draw]) => ({ draw }) %}
+  | "draw"i "s":? _ "cards equal to" _ numberDefinition
+  | "shuffle"i "s":? _ zone {% ([, , , shuffle]) => ({ shuffle }) %}
+  | "shuffle"i "s":? _ (object | zone) _ "into" _ zone {% ([, , , shuffle, , , , into]) => ({ shuffle, into }) %}
+  | "counter"i _ object {% ([, , counter]) => ({ counter }) %}
   | "tap"i " " object {% ([, , tap]) => ({ tap }) %}
-  | "take"i " " "an extra turn after this one"
-  | "untap"i " " object
-  | "scry"i _ number
-  | ("you"i _):? "pay"i _ manacost
-  | "pay"i _ numericalNumber _ "life"
-  | "add"i _ "one mana of any color"
-  | "add"i _ englishNumber _ "mana of any one color"
+  | "take"i " " "an extra turn after this one" {% () => "takeExtraTurn" %}
+  | "untap"i " " object {% ([, , untap]) => ({ untap }) %}
+  | "scry"i _ number {% ([, , scry]) => ({ scry }) %}
+  | "pay"i _ manacost (_ "rather than pay the mana cost for" _ object):? {% ([, , pay, rather]) => rather ? { pay, ratherThanCostOf: rather[3] } : { pay } %}
+  | "pay"i _ numericalNumber _ "life" {% ([, , life]) => ({ pay: { life } }) %}
+  | "add one mana of any color"i {% () => ({ addOneOf: ["W", "U", "B", "R", "G"], amount: 1 }) %}
+  | "add"i _ englishNumber _ "mana of any one color" {% ([, , amount]) => ({ addOneOf: ["W", "U", "B", "R", "G"], amount }) %}
   | "add"i _ englishNumber _ "mana in any combination of" _ manaSymbol _ "and/or" _ manaSymbol {% ([, , amount, , , , c1, , , , c2]) => ({ addCombinationOf: [c1, c2], amount }) %}
-  | "add"i _ manaSymbols (_ "or" _ manaSymbols):?
-  | "prevent"i _ damagePreventionAmount _ damageNoun _ "that would be dealt" (_ "to" _ object):? (_ duration):?
-  | "put"i _ englishNumber _ counterKind _ "counter"i "s":? _ "on" _ object
-  | "you"i _ "choose"i _ object (_ "from" _ "it"i):?
-  | "look"i _ "at the top" _ englishNumber _ "card"i "s" _ "of" _ zone
-  | "look"i _ "at"i _ object
-  | "reveal"i _ object {% ([, , reveal]) => ({ reveal }) %}
-  | "put"i _ object _ intoZone (_ "tapped"):? (_ "and" _ object _ intoZone):?
-  | gains _ "control" _ "of" _ object
-  | ("you"i _):? "may" _ sentence ("." _ "if"i _ "you"i _ "do" "," _ sentence):?
-  | "have" _ object _ objectInfinitive
-  | imperative _ "for"i _ "each"i _ pureObject
-  | imperative _ "and" _ imperative
-  | imperative _ "unless" _ imperative
-  | "choose"i _ "new targets for" _ object
-  | "switch"i _ "the power and toughness of" _ object _ untilClause
-  | "do the same for" _ object
-  | "spend"i _ "mana as though it were mana of any type to cast" _ object
-  | "choose"i _ "a"i _ "card"i _ CARD_NAME
+  | "add"i _ manaSymbols (",":? _ "or" _ manaSymbols):* {% ([, , m1, ms]) => ({ addOneOf: [m1, ...ms.map(([, , , , m2]) => m2)] }) %}
+  | "prevent"i _ damagePreventionAmount _ damageNoun _ "that would be dealt" (_ "to" _ anyEntity):? (_ duration):? {% ([, , amount, , prevent, , , to, duration]) => {
+    const result = { amount, prevent };
+    if (to) result.to = to[3];
+    if (duration) result.duration = duration[1];
+    return result;
+  } %}
+  | "put"i _ englishNumber _ counterKind _ "counter"i "s":? _ "on" _ object {% ([, , amount, , type, , , , , , , putCountersOn]) => ({ amount, type, putCountersOn }) %}
+  | "choose"i _ object (_ "from" _ "it"i):? {% ([, , choose]) => ({ choose }) %}
+  | "look at the top" _ englishNumber _ "cards of" _ zone {% ([, , lookAtTop, , , , from]) => ({ lookAtTop, from }) %}
+  | "look at"i _ object {% ([, , lookAt]) => ({ lookAt }) %}
+  | "reveal"i "s":? _ (object | zone) {% ([, , , [reveal]]) => ({ reveal }) %}
+  | "put"i _ object _ intoZone (_ "tapped"):? (_ "and" _ object _ intoZone):? {% ([, , put, , into, tapped, additional]) => {
+    let result = { put, into };
+    if (tapped) result.tapped = true;
+    if (additional) result = { and: [result, { put: additonal[3], into: additional[5] }] };
+    return result;
+  } %}
+  | gains _ "control of" _ object {% ([, , , , gainControlOf]) => ({ gainControlOf }) %}
+  | "may" _ sentence (". if you do," _ sentence):? {% ([, , may, ifDo]) => ifDo ? { may, ifDo: ifDo[2] } : { may } %}
+  | "have" _ object _ objectInfinitive # TODO: ASTize
+  | imperative _ "for each"i _ pureObject {% ([does, , , , forEach]) => ({ does, forEach }) %}
+  | imperative _ "and" _ sentence {% ([i1, , , , i2]) => ({ and: [i1, i2] }) %}
+  | imperative _ "unless" _ imperative {% ([does, , , , unless]) => ({ does, unless }) %}
+  | "choose new targets for" _ object {% ([, , newTargets]) => ({ choose: { newTargets } }) %}
+  | "switch the power and toughness of" _ object _ untilClause {% ([, , switchPowerToughness, , until]) => ({ switchPowerToughness, until }) %}
+  | "do the same for" _ object {% ([, , doSameFor]) => ({ doSameFor }) %}
+  | "spend mana as though it were mana of any type to cast" _ object {% ([, , spendManaAsAnyTypeFor]) => ({ spendManaAsAnyTypeFor }) %}
+  | "transform" _ object {% ([, , transform]) => ({ transform }) %}
+  | "flip a coin" {% () => "flipCoin" %}
+  | "win the flip" {% () => "winFlip" %}
+  | "lose the flip" {% () => "loseFlip" %}
+  | "regenerate"i _ object {% ([, , regenerate]) => ({ regenerate }) %}
+  | "bolster"i _ englishNumber {% ([, , bolster]) => ({ bolster }) %}
+  | "populate"i {% () => "populate" %}
+  | imperative _ untilClause {% ([does, , until]) => ({ does, until }) %}
+  | "support"i _ number {% ([, , support]) => ({ support }) %}
+  | "attach"i _ object _ "to" _ object {% ([, , attach, , , , to]) => ({ attach, to }) %}
 
-playerVerbPhrase -> gains _ number _ "life"
- | gains _ "life" _ "equal" _ "to" _ itsPossessive _ numericalCharacteristic
- | playerVerbPhrase _ "for"i _ "each"i _ pureObject
- | playerVerbPhrase _ "for the first time each turn"
- | controls _ object
- | owns _ object
- | (DON_T | DOESN_T) "lose this mana as steps and phases end." {% () => "doesntEmpty" %}
- | "puts" _ object _ intoZone
- | "surveil"i | "surveil"i "s"
- | "discards" _ object
- | "sacrifices" _ object
- | "reveal"i "s" _ playersPossessive _ "hand"
- | "life total becomes" _ englishNumber {% ([, , lifeTotalBecomes]) => ({ lifeTotalBecomes }) %}
- | imperative
- | playerVerbPhrase ("," | ".") _ "then"i _ playerVerbPhrase
- | "cant"i _ imperative
- | DOESN_T | DON_T | "does" | "do"
- | ("loses" | "lose") _ "the game"
- | playerVerbPhrase _ "if"i _ sentence
- | playerVerbPhrase _ "this way"
- | gets _ "an emblem" _ withClause
-objectVerbPhrase -> objectVerbPhrase ",":? _ "and" _ objectVerbPhrase
- | objectVerbPhrase _ "or" _ objectVerbPhrase
- | objectVerbPhrase "," (_ "then"):? _ objectVerbPhrase
- | ("has" | "have") _ acquiredAbility (_ asLongAsClause):?
- | gets _ ptModification (_ "and" _ gains _ acquiredAbility):? (_ untilClause):?
- | gains _ acquiredAbility _ "and" _ gets _ ptModification (_ untilClause):?
- | gets _ ptModification (_ forEachClause):? (_ untilClause):?
- | "enters" _ "the battlefield"i _ "with" _ ("a"i | "an"i _ "additional") _ counterKind _ "counter"i _ "on" _ "it"i (_ forEachClause):?
- | "enters" _ "the battlefield"i _ "with" _ englishNumber _ counterKind _ "counter"i "s" _ "on" _ "it"i
- | "enters" _ "the battlefield"i _ "with" _ "a number of" _ counterKind _ "counter"i "s" _ "on" _ "it"i _ "equal" _ "to" _ numberDefinition
- | ("enter" | "enters") _ "the battlefield"i (_ "tapped"):? (_ "under" _ playersPossessive _ "control"):?
- | ("leave" | "leaves") _ "the battlefield"i
- | ("die" | "dies")
- | "is" _ "put"i _ intoZone _ fromZone
- | "cant"i _ cantClauseInner (_ duration):?
- | "deals" _ dealsWhat
- | "is" _ isWhat
- | ("attacks" | "attack") (_ ("this"i | "each"i) _ "combat if able"):?
- | gains _ acquiredAbility (_ untilClause):?
- | DOESN_T _ "untap during" _ qualifiedPartOfTurn
- | "blocks or becomes blocked by" _ object
- | "is countered this way"
- | "fights" _ object
- | "targets" _ object
- | ("cost" | "costs") _ manacost _ "less" _ "to" _ "cast"i
- | "can"i _ "attack" _ "as though it didn\"t have defender"
- | "do so"
- | "does so"
- | ("remain" | "remains") _ "exiled"
- | "becomes" _ becomesWhat
- | ("lose" | "loses") _ "all abilities" (_ untilClause):?
- | ("is"|"are") _ "created"
- | "causes" _ player _ "to discard" _ object
- | objectVerbPhrase _ forEachClause
- | objectVerbPhrase _ duration
- | objectVerbPhrase _ "if"i _ sentence
-objectInfinitive -> "be put"i _ intoZone _ duration
-  | "be created under your control"i
-  | "fight" _ object
-  | "deal" _ dealsWhat
+playerVerbPhrase -> gains _ number _ "life" {% ([, , lifeGain]) => ({ lifeGain }) %}
+  | gains _ "life" _ "equal" _ "to" _ itsPossessive _ numericalCharacteristic # TODO: ASTize
+  | playerVerbPhrase _ "for"i _ "each"i _ pureObject # TODO: ASTize
+  | playerVerbPhrase _ "for the first time each turn" # TODO: ASTize
+  | controls _ ("no" _):? object {% ([, , negation, controls]) => negation ? { not: { controls } } : { controls } %}
+  | owns _ object {% ([, , owns]) => ({ owns }) %}
+  | (DON_T | DOESN_T) "lose this mana as steps and phases end." {% () => "doesntEmpty" %}
+  | "puts" _ object _ intoZone # TODO: ASTize
+  | "surveil"i | "surveil"i "s" # TODO: ASTize
+  | "discards" _ object # TODO: ASTize
+  | "sacrifices" _ object {% ([, , sacrifice]) => ({ sacrifice }) %}
+  | "reveal"i "s" _ playersPossessive _ "hand" # TODO: ASTize
+  | "life total becomes" _ englishNumber {% ([, , lifeTotalBecomes]) => ({ lifeTotalBecomes }) %}
+  | "attacked" _ duration {% ([, , duration]) => ({ does: "attack", duration }) %}
+  | imperative {% ([i]) => i %}
+  | playerVerbPhrase ("," | ".") _ "then"i _ playerVerbPhrase # TODO: ASTize
+  | CAN_T _ imperative {% ([, , cant]) => ({ cant }) %}
+  | DOESN_T | DON_T | "does" | "do" # TODO: ASTize
+  | ("loses" | "lose") _ "the game" # TODO: ASTize
+  | playerVerbPhrase _ "if"i _ sentence # TODO: ASTize
+  | playerVerbPhrase _ "this way" # TODO: ASTize
+  | gets _ "an emblem" _ withClause # TODO: ASTize
+  | "each" _ playerVerbPhrase {% ([, , eachDo]) => eachDo %}
+objectVerbPhrase -> objectVerbPhrase (",":? (_ "and"):? _ objectVerbPhrase):+ {% ([p1, ps]) => ({ and: [p1, ...ps.map(([, , , p2]) => p2)] }) %}
+  | objectVerbPhrase _ "or" _ objectVerbPhrase # TODO: ASTize
+  | objectVerbPhrase "," (_ "then"):? _ objectVerbPhrase # TODO: ASTize
+  | ("was" | "is") _ object {% ([, , is]) => ({ is }) %}
+  | ("has" | "have") _ acquiredAbility (_ asLongAsClause):? {% ([, , haveAbility, asLongAs]) => asLongAs ? { haveAbility, asLongAs: asLongAs[1] } : { haveAbility } %}
+  | gains _ acquiredAbility _ "and" _ gets _ ptModification # TODO: ASTize
+  | gets _ ptModification (_ forEachClause):? (_ "and" _ gains _ acquiredAbility):? (_ untilClause):? (_ asLongAsClause):? {% ([, , powerToughnessMod, forEach, gains, until, asLongAs]) => {
+    const result = { powerToughnessMod };
+    if (forEach) result.forEach = forEach[1];
+    if (gains) result.gains = gains[5];
+    if (until) result.until = until[1];
+    if (asLongAs) result.asLongAs = asLongAs[1];
+    return result;
+  } %}
+  | "enters" _ "the battlefield"i _ "with" _ ("a"i | "an"i _ "additional") _ counterKind _ "counter"i _ "on" _ "it"i (_ forEachClause):? # TODO: ASTize
+  | "enters" _ "the battlefield"i _ "with" _ englishNumber _ counterKind _ "counter"i "s" _ "on" _ "it"i # TODO: ASTize
+  | "enters the battlefield with a number of"i (_ "additional"):? _ counterKind _ "counters on it equal to"i _ numberDefinition {% ([, additional, , counterKind, , , , amount]) => ({ entersWith: additional ? { counterKind, amount, additional: true } : { counterKind, amount } }) %}
+  | ("enter" | "enters") _ "the battlefield"i (_ "tapped"):? (_ "under" _ playersPossessive _ "control"):? {% ([, , , tapped, control]) => {
+    const result = { enter: "theBattlefield" }
+    if (tapped) result.tapped = true;
+    if (control) result.control = control[3];
+    return result;
+  } %}
+  | ("leave" | "leaves") _ "the battlefield"i {% () => ({ leaves: "theBattlefield" }) %}
+  | ("die" | "dies") {% () => "dies" %}
+  | "is" _ "put"i _ intoZone _ fromZone # TODO: ASTize
+  | CAN_T _ cantClause {% ([, , cant]) => ({ cant }) %}
+  | "deals" _ dealsWhat {% ([, , deals]) => ({ deals }) %}
+  | ("is" | "are") _ isWhat {% ([, , is]) => ({ is }) %}
+  | ("attacks" | "attack") (_ ("this"i | "each"i) _ "combat if able"):? (_ "and" _ ISN_T _ "blocked"):? # TODO: ASTize
+  | gains _ acquiredAbility {% ([, , gains]) => ({ gains }) %}
+  | DOESN_T _ "untap during" _ qualifiedPartOfTurn # TODO: ASTize
+  | "blocks or becomes blocked by" _ object # TODO: ASTize
+  | "is countered this way" # TODO: ASTize
+  | "fights" _ object # TODO: ASTize
+  | "targets" _ object # TODO: ASTize
+  | "loses" _ keyword {% ([, , loses]) => ({ loses }) %}
+  | ("cost" | "costs") _ manacost _ "less" _ "to" _ "cast"i # TODO: ASTize
+  | "can attack as though it didn\"t have defender" # TODO: ASTize
+  | "can block an additional" _ object _ "each combat" {% ([, , blockAdditional]) => ({ blockAdditional }) %}
+  | "do so" # TODO: ASTize
+  | "does so" # TODO: ASTize
+  | ("remain" | "remains") _ "exiled" # TODO: ASTize
+  | "becomes" _ becomesWhat {% ([, , becomes]) => ({ becomes }) %}
+  | ("lose" | "loses") _ "all abilities" (_ untilClause):? # TODO: ASTize
+  | ("is"|"are") _ "created" # TODO: ASTize
+  | "causes" _ player _ "to discard" _ object # TODO: ASTize
+  | objectVerbPhrase _ forEachClause # TODO: ASTize
+  | objectVerbPhrase _ duration {% ([does, , duration]) => ({ does, duration }) %}
+  | objectVerbPhrase _ "if"i _ sentence # TODO: ASTize
+  | "was kicked" # TODO: ASTize
+  | CAN_T _ "be countered" # TODO: ASTize
+  | ("the" _):? "damage" _ CAN_T _ "be prevented" {% () => ({ cantPrevent: "damage" }) %}
+  | CAN_T _ "attack" _ duration {% ([, , , , cantAttack]) => ({ cantAttack }) %}
+  | CAN_T _ "be blocked" (_ "by" _ object):? (_ duration):? {% ([, , , by, duration]) => {
+    const result = { cant: { blockedBy: by ? by[3] : "any" } };
+    if (duration) result.duration = duration[1];
+    return result;
+  } %}
+  | "as" _ object (_ "in addition to its other types"):? {% ([, , as, inAddition]) => inAddition ? { as, inAddition: true } : { as } %}
+objectInfinitive -> "be put"i _ intoZone _ duration # TODO: ASTize
+  | "be created under your control"i # TODO: ASTize
+  | "fight" _ object # TODO: ASTize
+  | "deal" _ dealsWhat # TODO: ASTize
 
-isWhat -> color
-  | object
-  | inZone
-  | anyType (_ "in addition to its other types"i):?
-becomesWhat -> "tapped"
-  | "untapped"
-  | "a copy of" _ object ("," _ exceptClauseInCopyEffect):?
-exceptClauseInCopyEffect -> "except"i _ copyException ("," _ ("and" _ ):? copyException):*
-copyException -> "its name is" _ CARD_NAME
-  | IT_S _ isWhat
-  | singleSentence
+isWhat -> color {% ([color]) => ({ color }) %}
+  | object (_ "in addition to its other types"i):? {% ([object, addition]) => addition ? { object, inAddition: true } : { object } %}
+  | inZone {% ([inZone]) => ({ inZone }) %}
+  | "still" _ object {% ([, , still]) => ({ still }) %}
+  | "turned face up" {% () => "turnedFaceUp" %}
+  | "attacking"i {% () => "attacking" %}
+  | "blocking"i {% () => "blocking" %}
+  | "attacking" _ "or" _ "blocking" {% () => ({ or: ["attacking", "blocking"] }) %}
+  | condition {% ([condition]) => ({ condition }) %}
+becomesWhat -> "tapped" # TODO: ASTize
+  | "untapped" # TODO: ASTize
+  | "a copy of" _ object ("," _ exceptClauseInCopyEffect):? # TODO: ASTize
+  | "a" "n":? (_ pt):? _ anyType (_ "with base power and toughness" _ pt) {% ([, , , size, , type, size2]) => {
+    const result = { type };
+    if (size) result.size = size[1];
+    else if (size2) result.size = size2[3];
+    return result;
+  } %}
+  | "the basic land type" "s":? _ "of your choice" _ untilClause {% ([, , , , , until]) => ({ choose: "basicLandType", until }) %}
+  | "blocked" (_ "by" _ object) {% ([, by]) => by ? { blockedBy: by[3] } : { blockedBy: "any" } %}
+exceptClauseInCopyEffect -> "except"i _ copyException ("," _ ("and" _ ):? copyException):* # TODO: ASTize
+copyException -> "its name is" _ CARD_NAME # TODO: ASTize
+  | IT_S _ isWhat # TODO: ASTize
+  | singleSentence # TODO: ASTize
 
-itsPossessive -> object SAXON
-  | "its"i
-  | "their"i
+itsPossessive -> object SAXON {% ([o]) => o %}
+  | "its"i {% () => ({ reference: "its" }) %}
+  | "their"i {% () => ({ reference: "their" }) %}
 
-acquiredAbility -> keyword
-  | "\"" ability "\""
-  | "“" ability "”"
-  | acquiredAbility _ "and" _ acquiredAbility
-  | "this ability"
+acquiredAbility -> keyword {% ([k]) => k %}
+  | "\"" ability "\"" {% ([, a]) => a %}
+  | "“" ability "”" {% ([, a]) => a %}
+  | acquiredAbility _ "and" _ acquiredAbility {% ([a1, , , , a2]) => ({ and: [a1, a2] }) %}
+  | "this ability" {% () => "thisAbility" %}
 
 gets -> "get" "s":?
 controls -> "control" "s":?
 owns -> "own" "s":?
 gains -> "gain"i "s":?
 
-duration -> "this turn"
-  | "for"i _ asLongAsClause
-  | untilClause
-untilClause -> "until"i _ untilClauseInner
-untilClauseInner -> sentence
-  | "end of turn"i
+duration -> "this turn" {% () => "thisTurn" %}
+  | "last turn" {% () => "lastTurn" %}
+  | ("for"i _):? asLongAsClause {% ([, asLongAs]) => ({ asLongAs }) %}
+  | untilClause {% ([until]) => ({ until }) %}
+untilClause -> "until"i _ untilClauseInner {% ([, , u]) => u %}
+untilClauseInner -> sentence {% ([s]) => s %}
+  | "end of turn"i {% () => "endOfTurn" %}
+  | "your next turn"i {% () => "yourNextTurn" %}
 
-numericalCharacteristic -> "toughness"
-  | "power"
-  | "converted mana cost"
+numericalCharacteristic -> "toughness" # TODO: ASTize
+  | "power" # TODO: ASTize
+  | "converted mana cost" # TODO: ASTize
 
-damagePreventionAmount -> "all"i
-damageNoun -> ("non":? "combat" _):? "damage"
+damagePreventionAmount -> "all"i {% () => "all" %}
+  | "the next" _ englishNumber {% ([, , next]) => next %}
+damageNoun -> ("non":? "combat" _):? "damage" {% ([combat]) => ({ damage: combat ? (combat[0] ? { not: "combat" } : "combat") : "any" }) %}
 
-tokenDescription -> englishNumber _ pt _ color _ permanentType _ "token" "s":? (_ withClause):? {% ([amount, , size, , color, , tokenType]) => ({ amount, size, color, tokenType }) %}
+tokenDescription -> englishNumber _ pt _ color _ permanentType _ "token" "s":? (_ withClause):? (_ "named" _ [^.]:+):? {% ([amount, , size, , color, , tokenType, , , withClause, name]) => {
+  const result = { amount, size, color, tokenType };
+  if (withClause) result.with = withClause[1];
+  if (name) result.name = name[3].join('');
+  return result;
+} %}
 
-color -> "white"
-  | "blue"
-  | "black"
-  | "red"
-  | "green"
-  | "colorless"
-  | "monocolored"
-  | "multicolored"
-  | color _ "and" _ color
+color -> "white" # TODO: ASTize
+  | "blue" # TODO: ASTize
+  | "black" # TODO: ASTize
+  | "red" # TODO: ASTize
+  | "green" # TODO: ASTize
+  | "colorless" # TODO: ASTize
+  | "monocolored" # TODO: ASTize
+  | "multicolored" # TODO: ASTize
+  | color _ "and" _ color # TODO: ASTize
 
 pt -> number "/" number {% ([power, , toughness]) => ({ power, toughness }) %}
-ptModification -> PLUSMINUS number "/" PLUSMINUS number {% ([pmP, power, , pmT, toughness]) => ({ powerMod: '+' === pmP ? power : -power, toughnessMod: '+' === pmT ? toughness : -toughness }) %}
-numberDefinition -> itsPossessive _ numericalCharacteristic
-  | "the"i _ ("total"i _):? "number of" _ object
+ptModification -> PLUSMINUS number "/" PLUSMINUS number {% ([pmP, power, , pmT, toughness]) => ({ powerMod: '+' === pmP.toString() ? power : -power, toughnessMod: '+' === pmT.toString() ? toughness : -toughness }) %}
+numberDefinition -> itsPossessive _ numericalCharacteristic {% ([whose, , characteristic]) => ({ whose, characteristic }) %}
+  | "the"i _ ("total"i _):? "number of" _ object {% ([, , , , , count]) => ({ count }) %}
 integerValue -> [0-9]:+ {% ([digits]) => parseInt(digits.join(''), 10) %}
 
-withClause -> "with"i _ withClauseInner
-withClauseInner -> numericalCharacteristic _ numericalComparison
-  | "the highest" _ numericalCharacteristic _ "among"i _ object
-  | "converted mana costs" _ numericalNumber _ "and" _ numericalNumber
-  | counterKind _ "counters on"i _ ("it"i | "them"i)
-  | "that name"i
-  | acquiredAbility
+withClause -> "with"i _ withClauseInner {% ([, , withInner]) => ({ with: withInner }) %}
+withClauseInner -> numericalCharacteristic _ numericalComparison # TODO ASTize
+  | "the highest" _ numericalCharacteristic _ "among"i _ object # TODO ASTize
+  | "converted mana costs" _ numericalNumber _ "and" _ numericalNumber # TODO ASTize
+  | counterKind _ "counter" "s":? _ "on"i _ ("it"i | "them"i) # TODO ASTize
+  | "that name"i {% () => "thatName" %}
+  | "the same name as" _ object {% ([, , sameNameAs]) => ({ sameNameAs }) %}
+  | acquiredAbility {% ([ability]) => ({ ability }) %}
+  | object {% ([object]) => ({ object }) %}
 counterKind -> (ptModification
   | "charge"
   | "hit"
@@ -597,21 +749,29 @@ counterKind -> (ptModification
   | "deathtouch"
   | "indestructible"
   | "trample"
-  | "bounty") {% ([[counter]]) => ({ counter }) %}
+  | "bounty"
+  | "quest"
+  | "wish"
+  | "divinity"
+  | "shield"
+  | "brick"
+  | "fetch") {% ([[counter]]) => counter %}
 
-dealsWhat -> ("non":? "combat" _):? "damage" _ "to" _ damageRecipient
- | numericalNumber _ "damage" _ "to" _ damageRecipient
- | "damage" _ "equal" _ "to" _ numberDefinition _ "to" _ damageRecipient
- | "damage" _ "to" _ damageRecipient _ "equal" _ "to" _ numberDefinition
- | numericalNumber _ "damage" _ divideAmongDamageTargets
+dealsWhat -> damageNoun _ "to" _ damageRecipient {% ([damage, , , , to]) => ({ ...damage, to }) %}
+ | numericalNumber _ "damage to" _ damageRecipient {% ([amount, , , , damageTo]) => ({ amount, damageTo }) %}
+ | "damage equal to" _ numberDefinition _ "to" _ damageRecipient {% ([, , amount, , , , damageTo]) => ({ amount, damageTo }) %}
+ | "damage to" _ damageRecipient _ "equal to" _ numberDefinition {% ([, , damageTo, , , , amount]) => ({ amount, damageTo }) %}
+ | numericalNumber _ "damage" _ divideAmongDamageTargets {% ([amount, , , , divideAmong]) => ({ amount, divideAmong }) %}
 
-damageRecipient -> object
-  | player
-  | "any target"i
-  | "target" _ damageRecipient _ ("and" | "or") _ damageRecipient
-  | "itself"i
+damageRecipient -> object {% ([o]) => o %}
+  | player {% ([p]) => p %}
+  | "any target"i {% () => "anyTarget" %}
+  | ("target" _):? damageRecipient _ ("and" | "or") _ damageRecipient {% ([target, r1, , [connector], , r2]) => target ? { [connector]: [{ target: r1}, {target: r2}] } : { [connector]: [r1, r2] } %}
+  | "itself"i # TODO: ASTize
 # TODO: Fix this to be more generic
-divideAmongDamageTargets -> "divided as you choose among one, two, or three targets"i
+divideAmongDamageTargets -> "divided as you choose among" _ divideTargets {% ([, , divideTargets]) => divideTargets %}
+divideTargets -> "one, two, or three targets"i {% () => ({ targetCount: [1, 2, 3] }) %}
+  | "any number of targets"i {% () => ({ targetCount: "any" }) %}
 
 englishNumber -> "a"i {% () => 1 %}
   | "an"i {% () => 1 %}
@@ -634,77 +794,75 @@ number -> (integerValue
   | "x"i
   | "y"i
   | "z"i) {% ([[n]]) => n %}
-numericalComparison -> number _ "or greater"i
-  | number _ "or less"i
-  | "less than or equal to" _ numberDefinition
-  | "greater than" _ numberDefinition
-  | number
-countableCount -> "exactly"i _ englishNumber
-  | englishNumber _ "or more"i
-  | "fewer than" _ englishNumber
-  | "any number of"
-  | "one of"
-  | "up to" _ englishNumber
-  | englishNumber
+numericalComparison -> number _ "or greater"i # TODO: ASTize
+  | number _ "or less"i # TODO: ASTize
+  | "less than or equal to" _ numberDefinition # TODO: ASTize
+  | "greater than" _ numberDefinition # TODO: ASTize
+  | number # TODO: ASTize
+countableCount -> "exactly"i _ englishNumber # TODO: ASTize
+  | englishNumber _ "or more"i {% ([atLeast]) => ({ atLeast }) %}
+  | "fewer than" _ englishNumber {% ([, , lessThan]) => ({ lessThan }) %}
+  | "any number of" {% () => "anyNumber" %}
+  | "one of" {% () => 1 %}
+  | "up to" _ englishNumber {% ([, , upTo]) => ({ upTo }) %}
+  | englishNumber {% ([n]) => n %}
+  | "all"i {% () => "all" %}
+  | "both"i {% () => "both" %}
 
-cantClauseInner -> "attack"
-  | "block"
-  | "attack or block"
-  | "attack or block alone"
-  | "be blocked"
-  | "be countered"
-  | "be blocked by more than" _ englishNumber _ "creature"i "s":?
+cantClause -> cantClauseInner (_ "unless" _ condition):? {% ([cant, unless]) => unless ? { cant, unless: unless[3] } : cant %}
+cantClauseInner -> "attack" # TODO: ASTize
+  | "block" # TODO: ASTize
+  | "attack or block" # TODO: ASTize
+  | "attack or block alone" # TODO: ASTize
+  | "be blocked" # TODO: ASTize
+  | "be countered" # TODO: ASTize
+  | "be blocked by more than" _ englishNumber _ "creature"i "s":? # TODO: ASTize
 
-zone -> (playersPossessive | "a"i) _ ownedZone
-  | "exile"i
-  | "the battlefield"i
-  | "it"i
-ownedZone -> "graveyard"
-  | "library"
-  | "hand"
-  | ownedZone "s"
-  | ownedZone _ "and":? "/":? "or":? _ ownedZone
-  | ownedZone ("," _ ("and" _):? ownedZone):+
-intoZone -> "onto the battlefield"i
-  | "into" _ zone
-  | "on top of" _ zone
-  | "on the bottom of" _ zone _ ("in" _  ("any" | "a random") _ "order")
-inZone -> "on the battlefield"
-  | "in" _ zone
-fromZone -> "from" _ zone
+zone -> (playersPossessive | "a"i) _ ownedZone {% ([[owner], , zone]) => ({ owner, zone }) %}
+  | "exile"i {% () => "exile" %}
+  | "the battlefield"i {% () => "theBattlefield" %}
+  | "it"i {% () => "it" %}
+ownedZone -> "graveyard" {% () => "graveyard" %}
+  | "library" {% () => "library" %}
+  | "libraries" {% () => "library" %}
+  | "hand" {% () => "hand" %}
+  | ownedZone "s" {% ([z]) => z %}
+  | ownedZone _ ("and"i {% () => "and" %} | "or"i {% () => "xor" %} | "and/or"i {% () => "or" %}) _ ownedZone {% ([z1, , connector, , z2]) => ({ [connector]: [z1, z2] }) %}
+  | ownedZone ("," _ ("and" _):? ownedZone):+ {% ([z, zs]) => ({ and: [z, ...zs.map(([, , , z2]) => z2)] }) %}
+intoZone -> "onto the battlefield"i {% () => ({ into: "theBattlefield" }) %}
+  | "into" _ zone {% ([, , into]) => ({ into }) %}
+  | "on top of" _ zone {% ([, , onTopOf]) => ({ onTopOf }) %}
+  | "on the bottom of" _ zone (_ ("in" _  ("any" | "a random") _ "order")):? # TODO ASTize
+inZone -> "on the battlefield" # TODO: ASTize
+  | "in" _ zone # TODO: ASTize
+fromZone -> "from" _ zone # TODO: ASTize
 
-n -> "permanent"i
-  | n "s"
-  | (anyType _):? "spell"i
-  | (anyType _):? "card"i
-  | permanentType
-  | "permanent card"i
-  | "token"i
-  | "ability"i
-permanentType -> "artifact"
-  | "creature"i
-  | "enchantment"i
-  | "land"i
-  | "planeswalker"i
-  | "basic"i
-  | creatureType
-  | landType
-  | artifactType
-  | enchantmentType
-  | planeswalkerType
-  | permanentType _ permanentType
-  | permanentType _ "or"i _ permanentType
-anyType -> permanentType
-  | spellType
-  | "legendary"i
-  | "[" anyType "]"
-spellType -> "instant"i
-  | "sorcery"i
-  | "adventure"i
-  | "arcane"i
-  | "trap"i
-  | spellType _ ("and" | "or") spellType
-creatureType -> "Advisor"i
+permanentType -> "artifact" {% () => "artifact" %}
+  | "creature"i {% () => "creature" %}
+  | "enchantment"i {% () => "enchantment" %}
+  | "land"i {% () => "land" %}
+  | "planeswalker"i {% () => "planeswalker" %}
+  | "basic"i {% () => "basic" %}
+  | "permanent"i {% () => "permanent" %}
+  | creatureType {% ([t]) => t %}
+  | landType {% ([t]) => t %}
+  | artifactType {% ([t]) => t %}
+  | enchantmentType {% ([t]) => t %}
+  | planeswalkerType {% ([t]) => t %}
+  | permanentType _ permanentType {% ([t1, , t2]) => ({ and: [t1, t2] }) %}
+  | permanentType _ "or"i _ permanentType {% ([t1, , , , t2]) => ({ or: [t1, t2] }) %}
+anyType -> permanentType {% ([t]) => t %}
+  | spellType {% ([t]) => t %}
+  | "legendary"i {% () => "legendary" %}
+  | "[" anyType "]" {% ([, t]) => t %}
+spellType -> "instant"i {% () => "instant" %}
+  | "sorcery"i {% () => "sorcery" %}
+  | "adventure"i {% () => "adventure" %}
+  | "arcane"i {% () => "arcane" %}
+  | "trap"i {% () => "trap" %}
+  | "spell"i {% () => "spell" %}
+  | spellType _ ("and" | "or") _ spellType {% ([t1, , connector, , t2]) => ({ [connector]: [t1, t2] }) %}
+creatureType -> ("Advisor"i
   | "Aetherborn"i
   | "Ally"i
   | "Angel"i
@@ -954,8 +1112,8 @@ creatureType -> "Advisor"i
   | "Wurm"i
   | "Yeti"i
   | "Zombie"i
-  | "Zubera"i
-planeswalkerType -> "Ajani"i
+  | "Zubera"i) {% ([[t]]) => t.toLowerCase() %}
+planeswalkerType -> ("Ajani"i
   | "Aminatou"i
   | "Angrath"i
   | "Arlinn"i
@@ -1009,8 +1167,8 @@ planeswalkerType -> "Ajani"i
   | "Wrenn"i
   | "Xenagos"i
   | "Yanggu"i
-  | "Yanling"i
-landType -> basicLandType
+  | "Yanling"i) {% ([[t]]) => t.toLowerCase() %}
+landType -> (basicLandType
   | "Desert"i
   | "Gate"i
   | "lair"i
@@ -1018,32 +1176,32 @@ landType -> basicLandType
   | "mine"i
   | "power-plant"i
   | "tower"i
-  | "urza's"i
-basicLandType -> "Plains"i
+  | "urza's"i) {% ([[t]]) => t.toLowerCase() %}
+basicLandType -> ("plains"i
   | "island"i
   | "swamp"i
   | "mountain"i
-  | "forest"i
-enchantmentType -> "aura"i
+  | "forest"i) {% ([[t]]) => t.toLowerCase() %}
+enchantmentType -> ("aura"i
   | "cartouche"i
   | "curse"i
   | "saga"i
-  | "shrine"i
-artifactType -> "clue"i
+  | "shrine"i) {% ([[t]]) => t.toLowerCase() %}
+artifactType -> ("clue"i
   | "contraption"i
   | "equipment"i
   | "food"i
   | "fortification"i
   | "gold"i
   | "treasure"i
-  | "vehicle"i
+  | "vehicle"i) {% ([[t]]) => t.toLowerCase() %}
 
-asLongAsClause -> "as long as"i condition
+asLongAsClause -> "as long as"i _ condition {% ([, , c]) => c %}
 
 # TODO Generify
-replacementEffect -> sentence _ "instead of putting it" _ intoZone
+replacementEffect -> sentence _ "instead of putting it" _ intoZone # TODO: ASTize
 
-costs -> cost ("," _ cost):* {% ([c, cs]) => [c, ...cs.map(([, , c2]) => c2)] %}
+costs -> cost (",":? __ ("and" | "or" | "and/or"):?  _ cost):* {% ([c, cs]) => [c, ...cs.map(([, , c2]) => c2)] %}
 cost -> "{T}" {% () => "tap" %}
   | sentence {% ([s]) => s %}
   | manacost {% ([mana]) => ({ mana }) %}
@@ -1064,34 +1222,35 @@ manaLetter -> (integerValue
   | "c"i
   | "p"i) {% ([[s]]) => s %}
 
-qualifiedPartOfTurn -> turnQualification _ partOfTurn
-  | "combat on your turn"i
-  | "combat"i
-turnQualification -> (playersPossessive | "the"i) (_ "next"):?
-  | "this"i
-  | "each"i
-  | "this turn"i SAXON
-  | "that turn"i SAXON
-partOfTurn -> "turn"
-  | "untap step"i
-  | "upkeep"i
-  | "draw step"i
-  | "precombat main phase"i
-  | "main phase"i
-  | "postcombat main phase"i
-  | "end step"i
+qualifiedPartOfTurn -> turnQualification _ partOfTurn {% ([qualification, , partOfTurn]) => ({ qualification, partOfTurn }) %}
+  | "combat on your turn"i {% () => ({ qualification: "yourTurn", partOfTurn: "combat" }) %}
+  | "combat"i {% () => ({ partOfTurn: "combat" }) %}
+turnQualification -> (playersPossessive | "the"i) (_ "next"):? # TODO: ASTize
+  | "this"i # TODO: ASTize
+  | "each"i # TODO: ASTize
+  | "this turn"i SAXON # TODO: ASTize
+  | "that turn"i SAXON # TODO: ASTize
+partOfTurn -> "turn" {% () => turn %}
+  | "untap step"i {% () => "untap" %}
+  | "upkeep"i {% () => "upkeep" %}
+  | "draw step"i {% () => "drawStep" %}
+  | "precombat main phase"i {% () => "precombatMain" %}
+  | "main phase"i {% () => "main" %}
+  | "postcombat main phase"i {% () => "postcombatMain" %}
+  | "end step"i {% () => "end" %}
 
-playersPossessive -> "your"
-  | "their"
-  | player SAXON
-  | player AP
+playersPossessive -> "your" {% () => "your" %}
+  | "their" {% () => "their" %}
+  | player (SAXON | AP) {% ([player]) => player %}
 
 AP -> "'" | "’"
-CARD_NAME -> "~"
+CARD_NAME -> ("~" 
+  | "Prossh") {% () => "CARD_NAME" %}
 CAN_T -> "can't"i | "can’t"i
 DON_T -> "don't"i | "don’t"i
 DOESN_T -> "doesn't"i | "doesn’t"i
 DASHDASH -> "--" | "—"
+ISN_T -> "isn't"i | "isn’t"i
 IT_S -> "it's"i | "it’s"i
 PLUSMINUS -> "+" | "-" | "−"
 SAXON -> AP "s"

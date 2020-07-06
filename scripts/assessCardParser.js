@@ -5,6 +5,19 @@ const carddb = require('../serverjs/cards');
 
 const compiledGrammar = Grammar.fromCompiled(magicCardGrammar);
 
+const makeUnique = (lst) => {
+  const seen = [];
+  const result = [];
+  for (const elem of lst) {
+    const stringified = JSON.stringify(elem);
+    if (!seen.includes(stringified)) {
+      result.push(elem);
+      seen.push(stringified);
+    }
+  }
+  return result;
+};
+
 const tryParsing = ({ name, oracle_text }) => {
   const magicCardParser = new Parser(compiledGrammar);
   const oracleText = oracle_text.split(name).join('~');
@@ -14,7 +27,8 @@ const tryParsing = ({ name, oracle_text }) => {
     return { parsed: null, error, oracleText };
   }
 
-  const { results: result } = magicCardParser;
+  const { results } = magicCardParser;
+  const result = makeUnique(results);
   if (result.length !== 1) {
     return { result, error: 'Ambiguous or failed parse.', oracleText };
   }
@@ -29,7 +43,7 @@ carddb.initializeCardDb().then(() => {
   const oracleIds = [];
   let index = 1;
   for (const card of cards) {
-    const { isToken, name, oracle_id, border_color: borderColor, type } = card;
+    const { isToken, name, oracle_id, border_color: borderColor, type, set } = card;
     const typeLineLower = type && type.toLowerCase();
     if (
       !isToken &&
@@ -39,16 +53,17 @@ carddb.initializeCardDb().then(() => {
       !typeLineLower.includes('vanguard') &&
       !typeLineLower.includes('conspiracy') &&
       !typeLineLower.includes('hero') &&
-      !typeLineLower.includes('plane ')
+      !typeLineLower.includes('plane ') &&
+      set !== 'cmb1'
     ) {
       oracleIds.push(oracle_id);
       const { result, error, oracleText } = tryParsing(card);
       if (!error) {
-        successes.push(JSON.stringify([name, result]));
+        successes.push(JSON.stringify([name, result], null, 2));
       } else if (result) {
-        ambiguous.push(JSON.stringify([name, oracleText, error, result]));
+        ambiguous.push(JSON.stringify([name, oracleText, result], null, 2));
       } else {
-        failures.push(JSON.stringify([name, oracleText, error]));
+        failures.push(JSON.stringify([name, oracleText, error], null, 2));
       }
     }
     if (index % 500 === 0) {
@@ -56,15 +71,21 @@ carddb.initializeCardDb().then(() => {
     }
     index += 1;
   }
-  console.log('successes', successes.length);
+  console.info('successes', successes.length);
   // console.debug(successes.join('\n'));
-  console.log('ambiguous', ambiguous.length);
+  console.info('ambiguous', ambiguous.length);
   for (let i = 0; i < 1; i++) {
-    console.log(ambiguous[Math.floor(Math.random() * ambiguous.length)]);
+    console.info(ambiguous[Math.floor(Math.random() * ambiguous.length)]);
   }
-  console.log('failures', failures.length);
-  for (let i = 0; i < 5; i++) {
-    console.log(failures[Math.floor(Math.random() * failures.length)]);
+  console.info('failures', failures.length);
+  for (let i = 0; i < 8; i++) {
+    console.info(failures[Math.floor(Math.random() * failures.length)]);
   }
   // console.debug(failures.join('\n'));
+  console.info(
+    'parse rate',
+    successes.length + ambiguous.length,
+    '/',
+    successes.length + ambiguous.length + failures.length,
+  );
 });
