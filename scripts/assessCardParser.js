@@ -29,8 +29,11 @@ const tryParsing = ({ name, oracle_text }) => {
 
   const { results } = magicCardParser;
   const result = makeUnique(results);
-  if (result.length !== 1) {
-    return { result, error: 'Ambiguous or failed parse.', oracleText };
+  if (result.length === 0) {
+    return { result: null, error: 'Incomplete parse', oracleText };
+  }
+  if (result.length > 1) {
+    return { result, error: 'Ambiguous parse.', oracleText };
   }
   return { result, error: null, oracleText };
 };
