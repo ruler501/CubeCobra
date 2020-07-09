@@ -46,7 +46,18 @@ carddb.initializeCardDb().then(() => {
   const oracleIds = [];
   let index = 1;
   for (const card of cards) {
-    const { isToken, name, oracle_id, border_color: borderColor, type, set } = card;
+    const {
+      isToken,
+      name,
+      oracle_id,
+      border_color: borderColor,
+      type,
+      set,
+      parsed_cost: parsedCost,
+      power,
+      toughness,
+      loyalty,
+    } = card;
     const typeLineLower = type && type.toLowerCase();
     if (
       !isToken &&
@@ -57,14 +68,33 @@ carddb.initializeCardDb().then(() => {
       !typeLineLower.includes('conspiracy') &&
       !typeLineLower.includes('hero') &&
       !typeLineLower.includes('plane ') &&
+      !typeLineLower.includes('contraption ') &&
       set !== 'cmb1'
     ) {
       oracleIds.push(oracle_id);
       const { result, error, oracleText } = tryParsing(card);
       if (!error) {
-        successes.push(JSON.stringify([name, result], null, 2));
+        successes.push(
+          JSON.stringify({ name, parsedCost, type, oracleText, parsed: result[0], power, toughness, loyalty }, null, 2),
+        );
       } else if (result) {
-        ambiguous.push(JSON.stringify([name, oracleText, result], null, 2));
+        ambiguous.push(
+          JSON.stringify(
+            {
+              name,
+              parsedCost,
+              type,
+              oracleText,
+              parsed: result[0],
+              otherParses: result.slice(1),
+              power,
+              toughness,
+              loyalty,
+            },
+            null,
+            2,
+          ),
+        );
       } else {
         failures.push(JSON.stringify([name, oracleText, error], null, 2));
       }
@@ -75,7 +105,7 @@ carddb.initializeCardDb().then(() => {
     index += 1;
   }
   console.info('successes', successes.length);
-  // console.debug(successes.join('\n'));
+  console.debug(successes.join(',\n'));
   console.info('ambiguous', ambiguous.length);
   for (let i = 0; i < 1; i++) {
     console.info(ambiguous[Math.floor(Math.random() * ambiguous.length)]);
