@@ -1,5 +1,5 @@
-# @builtin "whitespace.ne"
 # Based on https://github.com/Soothsilver/mtg-grammar/blob/master/mtg.g4
+@include "./enums.ne"
 start -> card
 _ -> " ":?
 __ -> " "
@@ -373,6 +373,8 @@ condition -> sentence {% ([s]) => s %}
   | ("is" __):? "untapped" {% () => "untapped" %}
   | object __ "has the chosen name" {% ([what]) => ({ what, has: { reference: "chosen", what: "name" } }) %}
   | (numericalComparison {% ([condition]) => ({ condition }) %}| manaSymbol {% ([mana]) => ({ mana }) %}) __ "was spent to cast this spell" {% ([c]) => ({ ...c, value: { what: "mana", reference: { does: "spent", reference: "this", what: "spell" } } }) %}
+  | object __ "was kicked with its" __ manacost __ "kicker" {% ([what, , , , mana]) => ({ what, kicked: { with: { mana } } }) %}
+  | object __ "has" __ englishNumber __ counterKind __ "counter" "s":? " on it" {% ([what, , , , amount, , counterKind]) => ({ what, has: { amount, counterKind } }) %}
 
 action -> "scried" {% () => "scried" %}
   | "surveilled" {% () => "surveilled" %}
@@ -389,15 +391,13 @@ player -> "you"i {% () => "you" %}
   | connected[player] {% ([c]) => c %}
   | "they"i {% () => "they" %}
   | (commonReferencingPrefix __):* purePlayer {% ([references, player]) => references.length > 0 ? { references: references.map(([r]) => r), player } : player %}
-  | "your opponent" "s":? {% ([, plural]) => plural ? "opponent" : "opponents" %}
+  | "your opponent"i "s":? {% ([, plural]) => plural ? "opponent" : "opponents" %}
   | "defending player" {% () => "defendingPlayer" %}
   | itsPossessive __ ("controller"i {% () => "control" %} | "owner" {% () => "own" %}) "s":? {% ([whose, , does]) => ({ whose, does })  %}
   | "each of" __ player {% ([, , each]) => ({ each }) %}
   | "your team" {% () => "team" %}
-purePlayer -> "opponent"i {% () => "opponent" %}
-  | "player"i {% () => "player" %}
-  | "players"i {% () => "players" %}
-  | "opponents"i {% () => "opponents" %}
+purePlayer -> "player" "s":? {% () => "player" %}
+  | "opponent" "s":? {% () => "opponents" %}
   | "no one" {% () => "noone" %}
 object -> (referencingObjectPrefix __):? objectInner {% ([reference, object]) => reference ? { reference: reference[0], object } : object %}
 objectInner -> "it"i {% () => "it" %}
@@ -573,7 +573,11 @@ imperative -> "sacrifice"i __ object {% ([, , sacrifice]) => ({ sacrifice }) %}
   | "shuffle"i "s":? __ (object | zone) __ "into" __ zone {% ([, , , shuffle, , , , into]) => ({ shuffle, into }) %}
   | "counter"i "s":? __ object {% ([, , counter]) => ({ counter }) %}
   | "tap"i "s":? (__ "or untap"):? __ object {% ([, , untap, , tap]) => untap ? { does: { or: ["tap", "untap"] }, to: tap } : { tap } %}
-  | "untap"i "s":? __ object (__ "during" __ qualifiedPartOfTurn):? {% ([, , , tap, during]) => during ? { tap, when: during[3] } : { tap } %}
+  | "untap"i "s":? (__ "and goad" "s":?):? __ object (__ "during" __ qualifiedPartOfTurn):? {% ([, , goad, , tap, during]) => {
+      const result = during ? { tap, when: during[3] } : { tap };
+      if (goad) result.goad = true;
+      return result;
+    } %}
   | "take"i "s":? __ "an extra turn after this one" {% () => "takeExtraTurn" %}
   | "scry"i __ number {% ([, , scry]) => ({ scry }) %}
   | "pay"i "s":? __ manacost (__ "rather than pay the mana cost for" __ object):? {% ([, , , pay, rather]) => rather ? { pay, ratherThanCostOf: rather[3] } : { pay } %}
@@ -589,7 +593,7 @@ imperative -> "sacrifice"i __ object {% ([, , sacrifice]) => ({ sacrifice }) %}
   } %}
   | "put"i "s":? __ englishNumber __ counterKind __ "counter"i "s":? __ "on" __ object {% ([, , , amount, , counterKind, , , , , , , putOn]) => ({ amount, counterKind, putOn }) %}
   | "choose"i "s":? __ object {% ([, , , choose]) => ({ choose }) %}
-  | "look"i "s":? __ "at the top" __ englishNumber __ "cards of" __ zone {% ([, ,  , , , lookAtTop, , , , from]) => ({ lookAtTop, from }) %}
+  | "look"i "s":? __ "at the top" __ englishNumber __ "cards of" __ zone ("," __ "then put them back in any order"):? {% ([, ,  , , , lookAtTop, , , , from, anyOrder]) => anyOrder ? { lookAtTop, from, anyOrder: true } : { lookAtTop, from } %}
   | "look"i "s":? __ "at"i __ object {% ([, , , , , lookAt]) => ({ lookAt }) %}
   | "reveal"i "s":? __ (object | zone) (__ "at random" __ fromZone):? {% ([, , , [reveal], random]) => random ? { random: true, from: random[3], reveal } : { reveal } %}
   | "put"i "s":? __ object __ intoZone (__ "tapped"):? (__ "and" __ object __ intoZone):? (__ "under" __ playersPossessive __ "control"):? {% ([, , , put, , into, tapped, additional, control]) => {
@@ -798,7 +802,7 @@ damagePreventionAmount -> "all"i {% () => "all" %}
   | "the next" __ englishNumber {% ([, , next]) => next %}
 damageNoun -> ("non":? "combat" __):? "damage" {% ([combat]) => ({ damage: combat ? (combat[0] ? { not: "combat" } : "combat") : "any" }) %}
 
-tokenDescription -> englishNumber (__ pt):? (__ color):? __ permanentType __ "token" "s":? (__ withClause):? (__ "named" __ [^.]:+):? {% ([amount, size, color, , type, , , withClause, name]) => {
+tokenDescription -> englishNumber (__ pt):? (__ color):? __ permanentType __ "token" "s":? (__ withClause):? (__ "named" __ [^.]:+):? {% ([amount, size, color, , type, , , , withClause, name]) => {
   const result = { amount, type };
   if (size) result.size = size[1];
   if (color) result.color = color[1];
@@ -807,6 +811,7 @@ tokenDescription -> englishNumber (__ pt):? (__ color):? __ permanentType __ "to
   return result;
 } %}
   | englishNumber __ "token" "s":? __ "that" SAXON __ "a copy of" __ object {% ([amount , , , , , , , , , copy]) => ({ amount, copy }) %}
+  | connected[tokenDescription] {% ([c]) => c %}
 
 color -> "white"i {% () => "w" %}
   | "blue"i {% () => "u" %}
@@ -838,32 +843,13 @@ withClauseInner -> numericalCharacteristic __ numericalComparison {% ([value, , 
   | "the same name as" __ object {% ([, , sameNameAs]) => ({ sameNameAs }) %}
   | acquiredAbility {% ([ability]) => ({ ability }) %}
   | object {% ([object]) => ({ object }) %}
-counterKind -> (ptModification
-  | "charge"
-  | "hit"
-  | "wish"
-  | "flying"
-  | "lifelink"
-  | "deathtouch"
-  | "indestructible"
-  | "trample"
-  | "bounty"
-  | "quest"
-  | "wish"
-  | "divinity"
-  | "shield"
-  | "brick"
-  | "fetch"
-  | "charge"
-  | "storage"
-  | "fade"
-  | "time") {% ([[counter]]) => counter %}
 
 dealsWhat -> damageNoun __ "to" __ damageRecipient {% ([damage, , , , to]) => ({ ...damage, to }) %}
- | numericalNumber __ "damage to" __ damageRecipient {% ([amount, , , , damageTo]) => ({ amount, damageTo }) %}
+ | numberDefinition __ "damage to" __ damageRecipient {% ([amount, , , , damageTo]) => ({ amount, damageTo }) %}
  | "damage equal to" __ numberDefinition __ "to" __ damageRecipient {% ([, , amount, , , , damageTo]) => ({ amount, damageTo }) %}
  | "damage to" __ damageRecipient __ "equal to" __ numberDefinition {% ([, , damageTo, , , , amount]) => ({ amount, damageTo }) %}
- | numericalNumber __ "damage" __ divideAmongDamageTargets {% ([amount, , , , divideAmong]) => ({ amount, divideAmong }) %}
+ | numberDefinition __ "damage" __ divideAmongDamageTargets {% ([amount, , , , divideAmong]) => ({ amount, divideAmong }) %}
+ | "damage equal to" __ numberDefinition __  divideAmongDamageTargets {% ([, , amount, , divideAmong]) => ({ amount, divideAmong }) %}
 
 damageRecipient -> anyEntity {% ([o]) => o %}
   | "any target"i {% () => "anyTarget" %}
@@ -871,7 +857,7 @@ damageRecipient -> anyEntity {% ([o]) => o %}
   | "itself"i {% () => "self" %}
 divideAmongDamageTargets -> "divided as you choose among" __ divideTargets {% ([, , divideTargets]) => divideTargets %}
 divideTargets -> "one, two, or three targets"i {% () => ({ targetCount: [1, 2, 3] }) %}
-  | "any number of targets"i {% () => ({ targetCount: "any" }) %}
+  | "any number of"i __ object {% ([, , target]) => ({ targetCount: "any", target }) %}
   | "one or two targets"i {% () => ({ targetCount: [1, 2] }) %}
 
 englishNumber -> "a"i {% () => 1 %}
@@ -971,339 +957,6 @@ spellType -> "instant"i {% () => "instant" %}
   | "arcane"i {% () => "arcane" %}
   | "trap"i {% () => "trap" %}
   | connected[spellType] {% ([c]) => c %}
-creatureType -> ("Advisor"i
-  | "Aetherborn"i
-  | "Ally"i
-  | "Angel"i
-  | "Antelope"i
-  | "Ape"i
-  | "Archer"i
-  | "Archon"i
-  | "Army"i
-  | "Artificer"i
-  | "Assassin"i
-  | "Assembly-Worker"i
-  | "Atog"i
-  | "Aurochs"i
-  | "Avatar"i
-  | "Azra"i
-  | "Badger"i
-  | "Barbarian"i
-  | "Basilisk"i
-  | "Bat"i
-  | "Bear"i
-  | "Beast"i
-  | "Beeble"i
-  | "Berserker"i
-  | "Bird"i
-  | "Blinkmoth"i
-  | "Boar"i
-  | "Bringer"i
-  | "Brushwagg"i
-  | "Camarid"i
-  | "Camel"i
-  | "Caribou"i
-  | "Carrier"i
-  | "Cat"i
-  | "Centaur"i
-  | "Cephalid"i
-  | "Chimera"i
-  | "Citizen"i
-  | "Cleric"i
-  | "Cockatrice"i
-  | "Construct"i
-  | "Coward"i
-  | "Crab"i
-  | "Crocodile"i
-  | "Cyclops"i
-  | "Dauthi"i
-  | "Demigod"i
-  | "Demon"i
-  | "Deserter"i
-  | "Devil"i
-  | "Dinosaur"i
-  | "Djinn"i
-  | "Dragon"i
-  | "Drake"i
-  | "Dreadnought"i
-  | "Drone"i
-  | "Druid"i
-  | "Dryad"i
-  | "Dwarf"i
-  | "Efreet"i
-  | "Egg"i
-  | "Elder"i
-  | "Eldrazi"i
-  | "Elemental"i
-  | "Elephant"i
-  | "Elf"i
-  | "Elk"i
-  | "Eye"i
-  | "Faerie"i
-  | "Ferret"i
-  | "Fish"i
-  | "Flagbearer"i
-  | "Fox"i
-  | "Frog"i
-  | "Fungus"i
-  | "Gargoyle"i
-  | "Germ"i
-  | "Giant"i
-  | "Gnome"i
-  | "Goat"i
-  | "Goblin"i
-  | "God"i
-  | "Golem"i
-  | "Gorgon"i
-  | "Graveborn"i
-  | "Gremlin"i
-  | "Griffin"i
-  | "Hag"i
-  | "Harpy"i
-  | "Hellion"i
-  | "Hippo"i
-  | "Hippogriff"i
-  | "Homarid"i
-  | "Homunculus"i
-  | "Horror"i
-  | "Horse"i
-  | "Hound"i
-  | "Human"i
-  | "Hydra"i
-  | "Hyena"i
-  | "Illusion"i
-  | "Imp"i
-  | "Incarnation"i
-  | "Insect"i
-  | "Jackal"i
-  | "Jellyfish"i
-  | "Juggernaut"i
-  | "Kavu"i
-  | "Kirin"i
-  | "Kithkin"i
-  | "Knight"i
-  | "Kobold"i
-  | "Kor"i
-  | "Kraken"i
-  | "Lamia"i
-  | "Lammasu"i
-  | "Leech"i
-  | "Leviathan"i
-  | "Lhurgoyf"i
-  | "Licid"i
-  | "Lizard"i
-  | "Manticore"i
-  | "Masticore"i
-  | "Mercenary"i
-  | "Merfolk"i
-  | "Metathran"i
-  | "Minion"i
-  | "Minotaur"i
-  | "Mole"i
-  | "Monger"i
-  | "Mongoose"i
-  | "Monk"i
-  | "Monkey"i
-  | "Moonfolk"i
-  | "Mouse"i
-  | "Mutant"i
-  | "Myr"i
-  | "Mystic"i
-  | "Naga"i
-  | "Nautilus"i
-  | "Nephilim"i
-  | "Nightmare"i
-  | "Nightstalker"i
-  | "Ninja"i
-  | "Noble"i
-  | "Noggle"i
-  | "Nomad"i
-  | "Nymph"i
-  | "Octopus"i
-  | "Ogre"i
-  | "Ooze"i
-  | "Orb"i
-  | "Orc"i
-  | "Orgg"i
-  | "Otter"i
-  | "Ouphe"i
-  | "Ox"i
-  | "Oyster"i
-  | "Pangolin"i
-  | "Peasant"i
-  | "Pegasus"i
-  | "Pentavite"i
-  | "Pest"i
-  | "Phelddagrif"i
-  | "Phoenix"i
-  | "Pilot"i
-  | "Pincher"i
-  | "Pirate"i
-  | "Plant"i
-  | "Praetor"i
-  | "Prism"i
-  | "Processor"i
-  | "Rabbit"i
-  | "Rat"i
-  | "Rebel"i
-  | "Reflection"i
-  | "Rhino"i
-  | "Rigger"i
-  | "Rogue"i
-  | "Sable"i
-  | "Salamander"i
-  | "Samurai"i
-  | "Sand"i
-  | "Saproling"i
-  | "Satyr"i
-  | "Scarecrow"i
-  | "Scion"i
-  | "Scorpion"i
-  | "Scout"i
-  | "Sculpture"i
-  | "Serf"i
-  | "Serpent"i
-  | "Servo"i
-  | "Shade"i
-  | "Shaman"i
-  | "Shapeshifter"i
-  | "Shark"i
-  | "Sheep"i
-  | "Siren"i
-  | "Skeleton"i
-  | "Slith"i
-  | "Sliver"i
-  | "Slug"i
-  | "Snake"i
-  | "Soldier"i
-  | "Soltari"i
-  | "Spawn"i
-  | "Specter"i
-  | "Spellshaper"i
-  | "Sphinx"i
-  | "Spider"i
-  | "Spike"i
-  | "Spirit"i
-  | "Splinter"i
-  | "Sponge"i
-  | "Squid"i
-  | "Squirrel"i
-  | "Starfish"i
-  | "Surrakar"i
-  | "Survivor"i
-  | "Tentacle"i
-  | "Tetravite"i
-  | "Thalakos"i
-  | "Thopter"i
-  | "Thrull"i
-  | "Treefolk"i
-  | "Trilobite"i
-  | "Triskelavite"i
-  | "Troll"i
-  | "Turtle"i
-  | "Unicorn"i
-  | "Vampire"i
-  | "Vedalken"i
-  | "Viashino"i
-  | "Volver"i
-  | "Wall"i
-  | "Warlock"i
-  | "Warrior"i
-  | "Weird"i
-  | "Werewolf"i
-  | "Whale"i
-  | "Wizard"i
-  | "Wolf"i
-  | "Wolverine"i
-  | "Wombat"i
-  | "Worm"i
-  | "Wraith"i
-  | "Wurm"i
-  | "Yeti"i
-  | "Zombie"i
-  | "Zubera"i) {% ([[t]]) => t.toLowerCase() %}
-planeswalkerType -> ("Ajani"i
-  | "Aminatou"i
-  | "Angrath"i
-  | "Arlinn"i
-  | "Ashiok"i
-  | "Bolas"i
-  | "Calix"i
-  | "Chandra"i
-  | "Dack"i
-  | "Daretti"i
-  | "Davriel"i
-  | "Domri"i
-  | "Dovin"i
-  | "Elspeth"i
-  | "Estrid"i
-  | "Freyalise"i
-  | "Garruk"i
-  | "Gideon"i
-  | "Huatli"i
-  | "Jace"i
-  | "Jaya"i
-  | "Karn"i
-  | "Kasmina"i
-  | "Kaya"i
-  | "Kiora"i
-  | "Koth"i
-  | "Liliana"i
-  | "Lukka"i
-  | "Nahiri"i
-  | "Narset"i
-  | "Nissa"i
-  | "Nixilis"i
-  | "Oko"i
-  | "Ral"i
-  | "Rowan"i
-  | "Saheeli"i
-  | "Samut"i
-  | "Sarkhan"i
-  | "Serra"i
-  | "Sorin"i
-  | "Tamiyo"i
-  | "Teferi"i
-  | "Teyo"i
-  | "Tezzeret"i
-  | "Tibalt"i
-  | "Ugin"i
-  | "Venser"i
-  | "Vivien"i
-  | "Vraska"i
-  | "Will"i
-  | "Windgrace"i
-  | "Wrenn"i
-  | "Xenagos"i
-  | "Yanggu"i
-  | "Yanling"i) {% ([[t]]) => t.toLowerCase() %}
-landType -> (basicLandType
-  | "Desert"i
-  | "Gate"i
-  | "lair"i
-  | "locus"i
-  | "mine"i
-  | "power-plant"i
-  | "tower"i
-  | "urza's"i) {% ([[t]]) => t.toLowerCase() %}
-basicLandType -> ("plains"i
-  | "island"i
-  | "swamp"i
-  | "mountain"i
-  | "forest"i) {% ([[t]]) => t.toLowerCase() %}
-enchantmentType -> ("aura"i
-  | "cartouche"i
-  | "curse"i
-  | "saga"i
-  | "shrine"i) {% ([[t]]) => t.toLowerCase() %}
-artifactType -> ("clue"i
-  | "contraption"i
-  | "equipment"i
-  | "food"i
-  | "fortification"i
-  | "gold"i
-  | "treasure"i
-  | "vehicle"i) {% ([[t]]) => t.toLowerCase() %}
 
 asLongAsClause -> "as long as"i __ condition {% ([, , c]) => c %}
 
@@ -1364,7 +1017,8 @@ playersPossessive -> "your"i {% () => "your" %}
 
 AP -> "'" | "’"
 CARD_NAME -> ("~" 
-  | "Prossh") {% () => "CARD_NAME" %}
+  | "Prossh"
+  | "Elenda") {% () => "CARD_NAME" %}
 CAN_T -> "can't"i | "can’t"i
 DON_T -> "don't"i | "don’t"i
 DOESN_T -> "doesn't"i | "doesn’t"i
