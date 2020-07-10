@@ -57,6 +57,7 @@ carddb.initializeCardDb().then(() => {
       power,
       toughness,
       loyalty,
+      _id: cardID,
     } = card;
     const typeLineLower = type && type.toLowerCase();
     if (
@@ -74,47 +75,62 @@ carddb.initializeCardDb().then(() => {
       oracleIds.push(oracle_id);
       const { result, error, oracleText } = tryParsing(card);
       if (!error) {
-        successes.push(
-          JSON.stringify({ name, parsedCost, type, oracleText, parsed: result[0], power, toughness, loyalty }, null, 2),
-        );
+        successes.push({
+          cardID,
+          name,
+          parsedCost,
+          types: type.split('—').map((t) => t.split(' ')),
+          parsed: result[0],
+          power,
+          toughness,
+          loyalty,
+        });
       } else if (result) {
-        ambiguous.push(
-          JSON.stringify(
-            {
-              name,
-              parsedCost,
-              type,
-              oracleText,
-              parsed: result[0],
-              otherParses: result.slice(1),
-              power,
-              toughness,
-              loyalty,
-            },
-            null,
-            2,
-          ),
-        );
+        ambiguous.push({
+          cardID,
+          name,
+          parsedCost,
+          types: type.split('—').map((t) => t.split(' ')),
+          oracleText,
+          parsed: result[0],
+          otherParses: result.slice(1),
+          power,
+          toughness,
+          loyalty,
+        });
       } else {
-        failures.push(JSON.stringify([name, oracleText, error], null, 2));
+        failures.push({ name, oracleText, error });
       }
     }
     if (index % 500 === 0) {
-      console.info(`Finished ${index} of ${cards.length}`);
+      console.warn(`Finished ${index} of ${cards.length}`);
     }
     index += 1;
   }
   console.info('successes', successes.length);
-  console.debug(successes.join(',\n'));
+  // console.debug(
+  //   JSON.stringify(
+  //     successes.concat(ambiguous).map(({ cardID, name, parsedCost, types, parsed, power, toughness, loyalty }) => ({
+  //       cardID,
+  //       name,
+  //       parsedCost,
+  //       types,
+  //       parsed,
+  //       power,
+  //       toughness,
+  //       loyalty,
+  //     })),
+  //   ),
+  // );
   console.info('ambiguous', ambiguous.length);
   for (let i = 0; i < 1; i++) {
     console.info(ambiguous[Math.floor(Math.random() * ambiguous.length)]);
   }
   console.info('failures', failures.length);
   for (let i = 0; i < 8; i++) {
-    console.info(failures[Math.floor(Math.random() * failures.length)]);
+    console.info(JSON.stringify(failures[Math.floor(Math.random() * failures.length)]));
   }
-  // console.debug(failures.join('\n'));
+  // console.debug(failures.join('\n,'));
   console.info(
     'parse rate',
     successes.length + ambiguous.length,
