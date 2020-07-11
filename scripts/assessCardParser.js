@@ -20,7 +20,7 @@ const makeUnique = (lst) => {
 
 const tryParsing = ({ name, oracle_text }) => {
   const magicCardParser = new Parser(compiledGrammar);
-  const oracleText = oracle_text.split(name).join('~');
+  const oracleText = oracle_text.split(name).join('~').toLowerCase();
   try {
     magicCardParser.feed(oracleText);
   } catch (error) {
@@ -124,7 +124,7 @@ carddb.initializeCardDb().then(() => {
   // );
   console.info('ambiguous', ambiguous.length);
   for (let i = 0; i < 1; i++) {
-    console.info(ambiguous[Math.floor(Math.random() * ambiguous.length)]);
+    console.info(JSON.stringify(ambiguous[Math.floor(Math.random() * ambiguous.length)], null, 2));
   }
   console.info('failures', failures.length);
   for (let i = 0; i < 8; i++) {
