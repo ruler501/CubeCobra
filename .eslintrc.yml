@@ -1,7 +1,3 @@
-env:
-  browser: true
-  jest/globals: true
-  node: true
 extends:
   - airbnb
   - prettier
@@ -11,6 +7,7 @@ plugins:
   - prettier
   - react-hooks
   - babel
+  - cypress
 settings:
   import/resolver:
     webpack:
@@ -48,14 +45,32 @@ rules:
   react-hooks/rules-of-hooks: error
   react-hooks/exhaustive-deps: error
 overrides:
-  - files: ['src/**']
+  - files: ['__tests__/**']
+    env:
+      jest/globals: true
+  - files: ['src/**', 'public/js/**']
+    env:
+      browser: true
     rules:
       no-restricted-imports:
         - error
         - patterns: ['./*', '../*']
   - files: ['routes/**', 'serverjs/**']
+    env:
+      node: true
     rules:
       no-console: error
   - files: ['src/markdown/**/micromark-*']
     rules: 
       no-use-before-define: ['error', 'nofunc']
+  - files: ['cypress/**/*.js']
+    env:
+      cypress/globals: true
+    rules:
+      cypress/no-assigning-return-values: error
+      cypress/no-unnecessary-waiting: error
+      cypress/assertion-before-screenshot: error
+      cypress/no-force: error
+      cypress/no-async-tests: error
+      cypress/require-data-selectors: error
+      import/no-extraneous-dependencies: off

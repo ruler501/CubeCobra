@@ -348,7 +348,7 @@ const generateSamplepackImage = (sources = [], options = {}) =>
     options = { ...defaultOptions, ...options };
 
     // Setup browser/Node.js specific variables
-    const canvas = options.Canvas ? new options.Canvas() : window.document.createElement('canvas');
+    const canvas = new options.Canvas();
     const { Image } = options.Canvas;
 
     // Load sources
@@ -384,7 +384,7 @@ const generateSamplepackImage = (sources = [], options = {}) =>
 
         // Draw images to canvas
         images.forEach((image) => {
-          const scratchCanvas = options.Canvas ? new options.Canvas() : window.document.createElement('canvas');
+          const scratchCanvas = new options.Canvas();
           scratchCanvas.width = image.w || image.img.width;
           scratchCanvas.height = image.h || image.img.height;
           const scratchCtx = scratchCanvas.getContext('2d');

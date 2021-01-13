@@ -16,5 +16,12 @@
             "contexts/*": ["./src/contexts/*"]
         }
     },
-    "include": ["src/**/*", "app.js", "serverjs/*", "routes/*"]
+    "include": [
+        "src/**/*",
+        "app.js",
+        "serverjs/*",
+        "routes/*",
+        "__tests__/**/*.js",
+        "cypres/**/*.js"
+    ]
 }

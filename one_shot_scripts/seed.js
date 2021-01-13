@@ -16,26 +16,26 @@ const data = [
     model: 'User',
     documents: users,
   },
-  {
-    model: 'Blog',
-    documents: blogs,
-  },
-  {
-    model: 'CardRating',
-    documents: cardratings,
-  },
-  {
-    model: 'Cube',
-    documents: cubes,
-  },
-  {
-    model: 'Deck',
-    documents: decks,
-  },
-  {
-    model: 'Draft',
-    documents: drafts,
-  },
+  // {
+  //   model: 'Blog',
+  //   documents: blogs,
+  // },
+  // {
+  //   model: 'CardRating',
+  //   documents: cardratings,
+  // },
+  // {
+  //   model: 'Cube',
+  //   documents: cubes,
+  // },
+  // {
+  //   model: 'Deck',
+  //   documents: decks,
+  // },
+  // {
+  //   model: 'Draft',
+  //   documents: drafts,
+  // },
 ];
 
 seeder.connect(process.env.MONGODB_URL, () => {
