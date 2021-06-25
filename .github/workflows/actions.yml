@@ -1,15 +1,15 @@
 name: CI Tests
-
 on: [push, pull_request]
-
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+    - name: Update NPM
+      run: npm install -g npm
     - name: Setup
       run: npm install
     - name: Build
@@ -18,4 +18,3 @@ jobs:
       run: npm run lint
     - name: Run Unit Tests
       run: npm run test
-  
